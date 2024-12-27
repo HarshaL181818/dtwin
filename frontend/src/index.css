@@ -1,0 +1,78 @@
+/* Dark theme styles */
+body {
+  background-color: #121212;
+  color: #ffffff;
+  font-family: Arial, sans-serif;
+}
+
+.sidebar {
+  width: 300px;
+  background-color: #1e1e1e;
+  color: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  overflow-y: auto;
+}
+
+.sidebar h3 {
+  color: #ffffff;
+}
+
+.sidebar label {
+  color: #cccccc;
+}
+
+.sidebar input[type="number"],
+.sidebar input[type="range"],
+.sidebar input[type="color"] {
+  background-color: #2e2e2e;
+  color: #ffffff;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 5px;
+}
+
+.sidebar input[type="number"]:focus,
+.sidebar input[type="range"]:focus,
+.sidebar input[type="color"]:focus {
+  outline: none;
+  border-color: #555;
+}
+
+.button {
+  padding: 8px 16px;
+  background-color: #3a3a3a;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.3s ease;
+}
+
+.button:hover {
+  background-color: #555;
+}
+
+.building-list {
+  list-style: none;
+  padding: 0;
+}
+
+.building-item {
+  padding: 10px;
+  border: 1px solid #444;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: #2e2e2e;
+}
+
+.building-item:hover {
+  background-color: #444;
+}
+
+.building-item.selected {
+  background-color: #3a3a3a;
+}
+
