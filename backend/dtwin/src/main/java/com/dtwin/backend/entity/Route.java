@@ -27,10 +27,11 @@ public class Route {
     public Route() {
     }
 
-    public Route(String name, List<String> coordinates, String createdAt) {
+    public Route(String name, List<String> coordinates, String createdAt, String type) {
         this.name = name;
         this.coordinates = coordinates;
         this.createdAt = createdAt;
+        this.type = type;
     }
 
     public Long getId() {
@@ -73,5 +74,13 @@ public class Route {
                 ", coordinates=" + coordinates +
                 ", createdAt='" + createdAt + '\'' +
                 '}';
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
     }
 }

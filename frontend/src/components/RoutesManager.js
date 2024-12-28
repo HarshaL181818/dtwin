@@ -4,7 +4,7 @@ import axios from 'axios';
 const RouteManager = ({ map }) => {
   const [routes, setRoutes] = useState([]);
   const [routeName, setRouteName] = useState('');
-  const [routeType, setRouteType] = useState('major');
+  const [routeType, setRouteType] = useState('');
   const [clickedPoints, setClickedPoints] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
