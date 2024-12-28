@@ -68,7 +68,7 @@ const RouteManager = ({ map }) => {
         'line-cap': 'round'
       },
       paint: {
-        'line-color': '#ff0000',
+        'line-color': '#808080',
         'line-width': 3
       }
     });
@@ -105,7 +105,7 @@ const RouteManager = ({ map }) => {
   const containerStyle = {
     position: 'absolute',
     right: '20px',
-    top: '20px',
+    top: '700px',
     backgroundColor: 'white',
     padding: '20px',
     borderRadius: '8px',
