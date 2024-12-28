@@ -276,36 +276,25 @@ const Module1 = () => {
       }
     }
   };
-const handleDeleteBuilding = async (buildingId) => {
+  const handleDeleteBuilding = async (buildingId) => {
+    const previousBuildings = buildings;
+    setBuildings((prev) => prev.filter((b) => b.id !== buildingId));
+    
     try {
       await axios.delete(`${API_BASE_URL}/${buildingId}`);
-      // Remove the building layer and source
       if (map) {
-        const buildingId = `building-${buildingId}`;
-        const labelId = `${buildingId}-label`;
+        const buildingLayerId = `building-${buildingId}`;
+        const labelLayerId = `${buildingLayerId}-label`;
         
-        // Remove building layer and source
-        if (map.getLayer(buildingId)) {
-          map.removeLayer(buildingId);
-        }
-        if (map.getSource(buildingId)) {
-          map.removeSource(buildingId);
-        }
-        
-        // Remove label layer and source
-        if (map.getLayer(labelId)) {
-          map.removeLayer(labelId);
-        }
-        if (map.getSource(labelId)) {
-          map.removeSource(labelId);
-        }
+        if (map.getLayer(buildingLayerId)) map.removeLayer(buildingLayerId);
+        if (map.getSource(buildingLayerId)) map.removeSource(buildingLayerId);
+        if (map.getLayer(labelLayerId)) map.removeLayer(labelLayerId);
+        if (map.getSource(labelLayerId)) map.removeSource(labelLayerId);
       }
-      
-      // Update local state immediately
-      setBuildings(prev => prev.filter(b => b.id !== buildingId));
-      setSelectedBuilding(null);
     } catch (error) {
       console.error('Failed to delete building:', error);
+      // Revert the UI if deletion fails
+      setBuildings(previousBuildings);
     }
   };
 

@@ -25,8 +25,98 @@ const RouteManager = ({ map }) => {
   }, [map, isDrawing]);
 
   useEffect(() => {
-    drawRoute();
-  }, [clickedPoints]);
+    if (!map) return;
+    
+    // Remove only the temporary drawing layer
+    const drawingSourceId = 'temp-route-line';
+    if (map.getSource(drawingSourceId)) {
+      map.removeLayer(drawingSourceId);
+      map.removeSource(drawingSourceId);
+    }
+
+    // Draw the temporary route
+    if (clickedPoints.length >= 2) {
+      map.addSource(drawingSourceId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: clickedPoints
+          }
+        }
+      });
+
+      map.addLayer({
+        id: drawingSourceId,
+        type: 'line',
+        source: drawingSourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#808080',
+          'line-width': 3
+        }
+      });
+    }
+  }, [clickedPoints, map]);
+
+  // Display all saved routes
+  const displayRoutes = () => {
+    if (!map) return;
+
+    // Remove all existing route layers
+    routes.forEach(route => {
+      const sourceId = `route-${route.id}`;
+      if (map.getLayer(sourceId)) {
+        map.removeLayer(sourceId);
+      }
+      if (map.getSource(sourceId)) {
+        map.removeSource(sourceId);
+      }
+    });
+
+    // Add all routes to the map
+    routes.forEach(route => {
+      const sourceId = `route-${route.id}`;
+      const coordinates = route.coordinates.map(coord => 
+        coord.split(',').map(Number)
+      );
+
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: coordinates
+          }
+        }
+      });
+
+      map.addLayer({
+        id: sourceId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#808080',
+          'line-width': 3
+        }
+      });
+    });
+  };
+
+  useEffect(() => {
+    displayRoutes();
+  }, [routes, map]);
 
   const loadRoutes = async () => {
     try {
@@ -35,43 +125,6 @@ const RouteManager = ({ map }) => {
     } catch (error) {
       console.error('Failed to load routes:', error);
     }
-  };
-
-  const drawRoute = () => {
-    if (!map || clickedPoints.length < 2) return;
-    
-    const sourceId = 'route-line';
-    
-    if (map.getSource(sourceId)) {
-      map.removeLayer(sourceId);
-      map.removeSource(sourceId);
-    }
-
-    map.addSource(sourceId, {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: clickedPoints
-        }
-      }
-    });
-
-    map.addLayer({
-      id: sourceId,
-      type: 'line',
-      source: sourceId,
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': '#808080',
-        'line-width': 3
-      }
-    });
   };
 
   const handleSaveRoute = async () => {
@@ -84,10 +137,20 @@ const RouteManager = ({ map }) => {
       };
       
       await axios.post('http://localhost:8080/api/routes', route);
+      
+      // Clear the temporary drawing
+      const drawingSourceId = 'temp-route-line';
+      if (map.getLayer(drawingSourceId)) {
+        map.removeLayer(drawingSourceId);
+      }
+      if (map.getSource(drawingSourceId)) {
+        map.removeSource(drawingSourceId);
+      }
+
       setRouteName('');
       setClickedPoints([]);
       setIsDrawing(false);
-      loadRoutes();
+      loadRoutes(); // Reload all routes
     } catch (error) {
       console.error('Failed to save route:', error);
     }
@@ -96,12 +159,23 @@ const RouteManager = ({ map }) => {
   const handleDeleteRoute = async (id) => {
     try {
       await axios.delete(`http://localhost:8080/api/routes/${id}`);
-      loadRoutes();
+      
+      // Remove the route layer and source from the map
+      const sourceId = `route-${id}`;
+      if (map.getLayer(sourceId)) {
+        map.removeLayer(sourceId);
+      }
+      if (map.getSource(sourceId)) {
+        map.removeSource(sourceId);
+      }
+      
+      loadRoutes(); // Reload remaining routes
     } catch (error) {
       console.error('Failed to delete route:', error);
     }
   };
 
+  // Rest of the component remains the same...
   const containerStyle = {
     position: 'absolute',
     right: '20px',
@@ -131,7 +205,12 @@ const RouteManager = ({ map }) => {
           }}
         />
         <button
-          onClick={() => setIsDrawing(!isDrawing)}
+          onClick={() => {
+            setIsDrawing(!isDrawing);
+            if (!isDrawing) {
+              setClickedPoints([]);
+            }
+          }}
           style={{
             width: '100%',
             padding: '8px',
