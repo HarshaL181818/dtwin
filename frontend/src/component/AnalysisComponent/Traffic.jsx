@@ -103,7 +103,7 @@ Provide insights:
 - Is the congestion high, low, or moderate?
 - What is the primary cause of congestion on this route?
 - Suggest solutions to reduce congestion effectively.
-- Answer in short and only say important points without any bold of italic characters`;
+- Answer in short in around 7 lines and only say important points (no need to explain if there is low congestion, just say there,s low congestion) without any bold of italic characters`;
 
     console.log(query);
     fetchGeminiResponse(query);
