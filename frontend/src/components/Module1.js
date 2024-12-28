@@ -14,8 +14,8 @@ const Module1 = () => {
   const [buildingHeight, setBuildingHeight] = useState(50);
   const [buildingColor, setBuildingColor] = useState('#ff0000');
   const [buildings, setBuildings] = useState([]);
-  const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [buildingRotation, setBuildingRotation] = useState(0);
+  const [selectedBuilding, setSelectedBuilding] = useState("");
 
   const API_BASE_URL = 'http://localhost:8080/api/buildings';
 
@@ -24,6 +24,25 @@ const Module1 = () => {
     height: '100vh',
     gap: '20px',
     padding: '20px',
+  };
+
+  const building = [
+    "Residential Building",
+    "Market/Shopping Area",
+    "Office Building",
+    "Factory/Warehouse",
+    "Power Plant",
+    "Transport Hub",
+    "Educational Institution",
+    "Government Office",
+    "Park",
+    "Cinema/Entertainment",
+    "Gym/Sports Arena",
+    "Healthcare Facility",
+  ];
+
+  const handleChange = (event) => {
+    setSelectedBuilding(event.target.value);
   };
 
   const mapStyle = {
@@ -412,17 +431,25 @@ const Module1 = () => {
           </>
         )}
         <h3>List</h3>
-        <ul style={buildingListStyle}>
-          {buildings.map((building) => (
-            <li
-              key={building.id}
-              style={buildingItemStyle}
-              onClick={() => handleSelectBuilding(building)}
-            >
-            {building.id}
-            </li>
-          ))}
-        </ul>
+        <select
+        id="building-select"
+        value={selectedBuilding}
+        onChange={handleChange}
+      >
+        <option value="" disabled>
+          Choose a building
+        </option>
+        {building.map((building, index) => (
+          <option key={index} value={building}>
+            {building}
+          </option>
+        ))}
+      </select>
+      {selectedBuilding && (
+        <p>
+          <strong>Selected Building:</strong> {selectedBuilding}
+        </p>
+      )}
       </div>
     </div>
   );
