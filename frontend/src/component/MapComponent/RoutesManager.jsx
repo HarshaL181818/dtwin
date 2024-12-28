@@ -10,11 +10,10 @@ const RouteManager = ({ map }) => {
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
 
   const roadTypes = [
-    { value: 'major', label: 'Major Road', color: '#000000', width: 10 },
-    { value: 'minor', label: 'Minor Road', color: '#808080', width: 6 }
+    { value: 'major', label: 'Major Road', color: '#000000', width: 5 },
+    { value: 'minor', label: 'Minor Road', color: '#808080', width: 3 },
   ];
 
-  // Handle map style loading
   useEffect(() => {
     if (!map) return;
 
@@ -43,20 +42,18 @@ const RouteManager = ({ map }) => {
     const handleClick = (e) => {
       if (!isDrawing) return;
       const coordinates = [e.lngLat.lng, e.lngLat.lat];
-      setClickedPoints(prev => [...prev, coordinates]);
+      setClickedPoints((prev) => [...prev, coordinates]);
     };
 
     map.on('click', handleClick);
     return () => map.off('click', handleClick);
   }, [map, isDrawing]);
 
-  // Update drawing line
   useEffect(() => {
     if (!map || !isStyleLoaded) return;
-    
+
     const drawingSourceId = 'temp-route-line';
-    
-    // Cleanup function to remove previous layers/sources
+
     const cleanup = () => {
       if (map.getLayer(drawingSourceId)) {
         map.removeLayer(drawingSourceId);
@@ -69,7 +66,7 @@ const RouteManager = ({ map }) => {
     cleanup();
 
     if (clickedPoints.length >= 2) {
-      const currentRoadStyle = roadTypes.find(type => type.value === routeType) || roadTypes[0];
+      const currentRoadStyle = roadTypes.find((type) => type.value === routeType) || roadTypes[0];
 
       try {
         map.addSource(drawingSourceId, {
@@ -79,9 +76,9 @@ const RouteManager = ({ map }) => {
             properties: {},
             geometry: {
               type: 'LineString',
-              coordinates: clickedPoints
-            }
-          }
+              coordinates: clickedPoints,
+            },
+          },
         });
 
         map.addLayer({
@@ -90,12 +87,12 @@ const RouteManager = ({ map }) => {
           source: drawingSourceId,
           layout: {
             'line-join': 'round',
-            'line-cap': 'round'
+            'line-cap': 'round',
           },
           paint: {
             'line-color': currentRoadStyle.color,
-            'line-width': currentRoadStyle.width
-          }
+            'line-width': currentRoadStyle.width,
+          },
         });
       } catch (error) {
         console.error('Error adding temporary route:', error);
@@ -108,25 +105,11 @@ const RouteManager = ({ map }) => {
   const displayRoutes = () => {
     if (!map || !isStyleLoaded) return;
 
-    // Clean up existing routes
-    routes.forEach(route => {
+    routes.forEach((route) => {
       const sourceId = `route-${route.id}`;
-      if (map.getLayer(sourceId)) {
-        map.removeLayer(sourceId);
-      }
-      if (map.getSource(sourceId)) {
-        map.removeSource(sourceId);
-      }
-    });
+      const coordinates = route.coordinates.map((coord) => coord.split(',').map(Number));
 
-    // Add routes
-    routes.forEach(route => {
-      const sourceId = `route-${route.id}`;
-      const coordinates = route.coordinates.map(coord => 
-        coord.split(',').map(Number)
-      );
-
-      const roadStyle = roadTypes.find(type => type.value === route.type) || roadTypes[0];
+      const roadStyle = roadTypes.find((type) => type.value === route.type) || roadTypes[0];
 
       try {
         map.addSource(sourceId, {
@@ -136,9 +119,9 @@ const RouteManager = ({ map }) => {
             properties: {},
             geometry: {
               type: 'LineString',
-              coordinates: coordinates
-            }
-          }
+              coordinates: coordinates,
+            },
+          },
         });
 
         map.addLayer({
@@ -147,12 +130,12 @@ const RouteManager = ({ map }) => {
           source: sourceId,
           layout: {
             'line-join': 'round',
-            'line-cap': 'round'
+            'line-cap': 'round',
           },
           paint: {
             'line-color': roadStyle.color,
-            'line-width': roadStyle.width
-          }
+            'line-width': roadStyle.width,
+          },
         });
       } catch (error) {
         console.error(`Error adding route ${route.id}:`, error);
@@ -182,11 +165,11 @@ const RouteManager = ({ map }) => {
       const route = {
         name: routeName,
         type: routeType,
-        coordinates: clickedPoints.map(coord => coord.join(','))
+        coordinates: clickedPoints.map((coord) => coord.join(',')),
       };
-      
+
       await axios.post('http://localhost:8080/api/routes', route);
-      
+
       const drawingSourceId = 'temp-route-line';
       if (map.getLayer(drawingSourceId)) {
         map.removeLayer(drawingSourceId);
@@ -207,7 +190,7 @@ const RouteManager = ({ map }) => {
   const handleDeleteRoute = async (id) => {
     try {
       await axios.delete(`http://localhost:8080/api/routes/${id}`);
-      
+
       const sourceId = `route-${id}`;
       if (map.getLayer(sourceId)) {
         map.removeLayer(sourceId);
@@ -215,7 +198,7 @@ const RouteManager = ({ map }) => {
       if (map.getSource(sourceId)) {
         map.removeSource(sourceId);
       }
-      
+
       loadRoutes();
     } catch (error) {
       console.error('Failed to delete route:', error);
@@ -223,14 +206,12 @@ const RouteManager = ({ map }) => {
   };
 
   const containerStyle = {
-    position: 'absolute',
-    right: '400px',
-    top: '700px',
-    backgroundColor: 'white',
+    width: '300px',
+    backgroundColor: '#f8f9fa',
     padding: '20px',
     borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-    width: '250px'
+    overflowY: 'auto',
+    marginRight: '20px',
   };
 
   const inputStyle = {
@@ -238,12 +219,32 @@ const RouteManager = ({ map }) => {
     padding: '8px',
     marginBottom: '10px',
     border: '1px solid #ddd',
-    borderRadius: '4px'
+    borderRadius: '4px',
+  };
+
+  const buttonStyle = {
+    width: '100%',
+    padding: '8px',
+    marginBottom: '10px',
+    backgroundColor: isDrawing ? '#dc3545' : '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  };
+
+  const routeItemStyle = {
+    padding: '10px',
+    border: '1px solid #ddd',
+    marginBottom: '5px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    backgroundColor: 'white',
   };
 
   return (
     <div style={containerStyle}>
-      <h3 style={{ marginBottom: '15px' }}>Routes</h3>
+      <h3>Route Controls</h3>
       <div>
         <input
           type="text"
@@ -252,21 +253,19 @@ const RouteManager = ({ map }) => {
           placeholder="Route name"
           style={inputStyle}
         />
-        
+
         <select
           value={routeType}
-          onChange={(e) => {
-            console.log('Selected route type:', e.target.value); // Add logging
-            setRouteType(e.target.value);
-          }}
+          onChange={(e) => setRouteType(e.target.value)}
           style={inputStyle}
         >
-          {roadTypes.map(type => (
+          {roadTypes.map((type) => (
             <option key={type.value} value={type.value}>
               {type.label}
             </option>
           ))}
         </select>
+
         <button
           onClick={() => {
             setIsDrawing(!isDrawing);
@@ -274,70 +273,46 @@ const RouteManager = ({ map }) => {
               setClickedPoints([]);
             }
           }}
-          style={{
-            width: '100%',
-            padding: '8px',
-            marginBottom: '10px',
-            backgroundColor: isDrawing ? '#dc3545' : '#28a745',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
+          style={buttonStyle}
         >
           {isDrawing ? 'Cancel Drawing' : 'Start Drawing'}
         </button>
+
         {isDrawing && clickedPoints.length >= 2 && (
           <button
             onClick={handleSaveRoute}
             style={{
-              width: '100%',
-              padding: '8px',
-              marginBottom: '10px',
+              ...buttonStyle,
               backgroundColor: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
+              marginBottom: '10px',
             }}
           >
             Save Route
           </button>
         )}
       </div>
-      
+
+      <h3>Routes List</h3>
       <div>
         {routes.map((route) => (
           <div
             key={route.id}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '8px',
-              marginBottom: '5px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
+            style={routeItemStyle}
+            onClick={() => console.log('Route selected:', route.id)}
           >
-            <div>
-              <div>{route.name}</div>
-              <div style={{ fontSize: '0.8em', color: '#666' }}>
-                {roadTypes.find(type => type.value === route.type)?.label || 'Major Road'}
-              </div>
+            <strong>{route.name}</strong>
+            <div style={{ fontSize: '0.9em', color: '#666' }}>
+              {roadTypes.find((type) => type.value === route.type)?.label || 'Major Road'}
             </div>
             <button
               onClick={() => handleDeleteRoute(route.id)}
               style={{
-                padding: '4px 8px',
+                ...buttonStyle,
                 backgroundColor: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
+                marginTop: '5px',
               }}
             >
-              Delete
+              Delete Route
             </button>
           </div>
         ))}
