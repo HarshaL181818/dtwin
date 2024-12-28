@@ -1,0 +1,66 @@
+/* App.css */
+  #canvas-container {
+    position: relative;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end; /* Align canvas to the bottom */
+    overflow: hidden;
+    height: 100vh;
+  }
+  
+  canvas {
+    display: block;
+    width: 100%; /* Make canvas responsive */
+    height: auto;
+  }
+  
+  #gradient-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 1) 0%,
+      rgba(0,0,0,1) 20%,
+      rgba(0,0,0,0.8) 30%,/* Fully opaque at the top */
+      rgba(0, 0, 0, 0.7) 50%,
+      rgba(0,0,0,0.6) 60%,
+      rgba(0,0,0,0.5) 65%,
+      rgba(0,0,0,0.3) 80%,/* Semi-transparent in the middle */
+      rgba(0, 0, 0, 0) 100%   /* Fully transparent at the bottom */
+    );
+    pointer-events: none; /* Ensure clicks go through */
+    z-index: 5;
+  }
+  
+  #content-overlay {
+    position: absolute;
+    z-index: 10; /* Place above gradient and canvas */
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 100%;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+  }
+  
+  #content-overlay > nav {
+    align-self: flex-start; /* Align the navbar to the top */
+    width: 100%;
+  }
+  
+  #content-overlay > div {
+    flex: 1; /* Take up remaining space for other content */
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Center the remaining content */
+    align-items: center;
+  }
