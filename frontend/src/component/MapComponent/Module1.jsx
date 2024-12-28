@@ -5,7 +5,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import RouteManager from './RoutesManager';
 import PolygonAQIManager from '../AnalysisComponent/PolygonAQIManager';
 
-mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
+mapboxgl.accessToken = import.meta.env.VITE_REACT_APP_MAPBOX_TOKEN;
 
 const Module1 = () => {
   const mapContainerRef = useRef(null);
