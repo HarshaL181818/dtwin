@@ -178,7 +178,7 @@ const RouteManager = ({ map }) => {
   // Rest of the component remains the same...
   const containerStyle = {
     position: 'absolute',
-    right: '20px',
+    right: '400px',
     top: '700px',
     backgroundColor: 'white',
     padding: '20px',

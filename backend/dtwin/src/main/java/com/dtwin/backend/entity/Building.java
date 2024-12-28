@@ -32,6 +32,8 @@ public class Building {
     private String color;
     private Double rotation;
 
+    private String type;
+
     @PostLoad
     public void postLoad() {
         try {
@@ -134,5 +136,13 @@ public class Building {
 
     public void setRotation(Double rotation) {
         this.rotation = rotation;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
     }
 }

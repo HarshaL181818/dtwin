@@ -22,6 +22,8 @@ public class Route {
     @Column(name = "created_at", nullable = false, updatable = false)
     private String createdAt;
 
+    private String type;
+
     public Route() {
     }
 

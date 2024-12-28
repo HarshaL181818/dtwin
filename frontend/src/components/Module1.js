@@ -15,18 +15,12 @@ const Module1 = () => {
   const [buildingColor, setBuildingColor] = useState('#ff0000');
   const [buildings, setBuildings] = useState([]);
   const [buildingRotation, setBuildingRotation] = useState(0);
-  const [selectedBuilding, setSelectedBuilding] = useState("");
+  const [selectedBuilding, setSelectedBuilding] = useState(null);
+  const [buildingType, setBuildingType] = useState('');
 
   const API_BASE_URL = 'http://localhost:8080/api/buildings';
 
-  const containerStyle = {
-    display: 'flex',
-    height: '100vh',
-    gap: '20px',
-    padding: '20px',
-  };
-
-  const building = [
+  const buildingTypes = [
     "Residential Building",
     "Market/Shopping Area",
     "Office Building",
@@ -41,8 +35,12 @@ const Module1 = () => {
     "Healthcare Facility",
   ];
 
-  const handleChange = (event) => {
-    setSelectedBuilding(event.target.value);
+  // Styles
+  const containerStyle = {
+    display: 'flex',
+    height: '100vh',
+    gap: '20px',
+    padding: '20px',
   };
 
   const mapStyle = {
@@ -62,7 +60,16 @@ const Module1 = () => {
     marginBottom: '15px',
   };
 
+  const inputStyle = {
+    width: '100%',
+    padding: '8px',
+    marginBottom: '10px',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+  };
+
   const buttonStyle = {
+    width: '100%',
     padding: '8px 16px',
     backgroundColor: '#007bff',
     color: 'white',
@@ -72,29 +79,27 @@ const Module1 = () => {
     marginTop: '10px',
   };
 
-  const buildingListStyle = {
-    listStyle: 'none',
-    padding: 0,
-  };
-
   const buildingItemStyle = {
     padding: '10px',
     border: '1px solid #ddd',
     marginBottom: '5px',
     borderRadius: '4px',
     cursor: 'pointer',
+    backgroundColor: 'white',
   };
 
-  // Fetch buildings from the backend
+  const selectedBuildingItemStyle = {
+    ...buildingItemStyle,
+    backgroundColor: '#e9ecef',
+    borderColor: '#007bff',
+  };
+
+  // Load buildings from backend
   const loadBuildings = async () => {
     try {
       const response = await axios.get(API_BASE_URL);
       setBuildings(response.data);
-
-      // Display all buildings on the map
-      response.data.forEach((building) => {
-        displayBuilding(building);
-      });
+      response.data.forEach(displayBuilding);
     } catch (error) {
       console.error('Failed to load buildings:', error);
     }
@@ -150,7 +155,7 @@ const Module1 = () => {
       },
     });
   
-    // Add ID label source and layer
+    // Add label with building type and ID
     map.addSource(`${buildingId}-label`, {
       type: 'geojson',
       data: {
@@ -160,7 +165,8 @@ const Module1 = () => {
           coordinates: center
         },
         properties: {
-          id: building.id
+          id: building.id,
+          type: building.type
         }
       }
     });
@@ -170,9 +176,9 @@ const Module1 = () => {
       type: 'symbol',
       source: `${buildingId}-label`,
       layout: {
-        'text-field': `#${building.id}`,
+        'text-field': `#${building.id}\n${building.type || 'Unknown'}`,
         'text-anchor': 'center',
-        'text-size': 16,
+        'text-size': 14,
         'text-allow-overlap': true
       },
       paint: {
@@ -186,7 +192,7 @@ const Module1 = () => {
   useEffect(() => {
     const mapInstance = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/light-v11', // Changed to light style for better visibility
+      style: 'mapbox://styles/mapbox/light-v11',
       center: [77.5946, 12.9716],
       zoom: 15,
       pitch: 60,
@@ -195,7 +201,6 @@ const Module1 = () => {
     });
 
     mapInstance.on('load', () => {
-      // Add 3D building layer settings
       mapInstance.addLayer({
         'id': 'add-3d-buildings',
         'source': 'composite',
@@ -268,39 +273,40 @@ const Module1 = () => {
   };
 
   const handleAddBuilding = async () => {
-    if (!clickedLocation) return;
+    if (!clickedLocation || !buildingType) {
+      alert('Please select a location and building type');
+      return;
+    }
 
     const size = buildingWidth / 111111;
     const coordinates = getRotatedCoordinates(clickedLocation, size, buildingRotation);
 
-    const building = {
+    const newBuilding = {
       location: clickedLocation,
       coordinates,
       width: buildingWidth,
       height: buildingHeight,
       color: buildingColor,
       rotation: buildingRotation,
+      type: buildingType,
     };
 
     try {
-      const response = await axios.post(API_BASE_URL, building);
-      setBuildings((prev) => [...prev, response.data]);
+      const response = await axios.post(API_BASE_URL, newBuilding);
+      setBuildings(prev => [...prev, response.data]);
       displayBuilding(response.data);
       setClickedLocation(null);
+      setBuildingType('');
     } catch (error) {
-      if (error.response) {
-        console.error('Failed to add building:', error.response.data);
-      } else {
-        console.error('Network error or unexpected issue:', error.message);
-      }
+      console.error('Failed to add building:', error);
+      alert('Failed to add building. Please try again.');
     }
   };
+
   const handleDeleteBuilding = async (buildingId) => {
-    const previousBuildings = buildings;
-    setBuildings((prev) => prev.filter((b) => b.id !== buildingId));
-    
     try {
       await axios.delete(`${API_BASE_URL}/${buildingId}`);
+      
       if (map) {
         const buildingLayerId = `building-${buildingId}`;
         const labelLayerId = `${buildingLayerId}-label`;
@@ -310,10 +316,12 @@ const Module1 = () => {
         if (map.getLayer(labelLayerId)) map.removeLayer(labelLayerId);
         if (map.getSource(labelLayerId)) map.removeSource(labelLayerId);
       }
+      
+      setBuildings(prev => prev.filter(b => b.id !== buildingId));
+      setSelectedBuilding(null);
     } catch (error) {
       console.error('Failed to delete building:', error);
-      // Revert the UI if deletion fails
-      setBuildings(previousBuildings);
+      alert('Failed to delete building. Please try again.');
     }
   };
 
@@ -333,6 +341,7 @@ const Module1 = () => {
       height: buildingHeight,
       color: buildingColor,
       rotation: buildingRotation,
+      type: buildingType,
       coordinates,
     };
 
@@ -341,13 +350,15 @@ const Module1 = () => {
         `${API_BASE_URL}/${selectedBuilding.id}`,
         updatedBuilding
       );
-      displayBuilding(response.data);
-      setBuildings((prev) =>
-        prev.map((b) => (b.id === selectedBuilding.id ? response.data : b))
+      setBuildings(prev =>
+        prev.map(b => (b.id === selectedBuilding.id ? response.data : b))
       );
+      displayBuilding(response.data);
       setSelectedBuilding(null);
+      setBuildingType('');
     } catch (error) {
       console.error('Failed to update building:', error);
+      alert('Failed to update building. Please try again.');
     }
   };
 
@@ -357,6 +368,7 @@ const Module1 = () => {
     setBuildingHeight(building.height);
     setBuildingColor(building.color);
     setBuildingRotation(building.rotation || 0);
+    setBuildingType(building.type || '');
   };
 
   const getRotatedCoordinates = (center, size, rotation) => {
@@ -383,9 +395,25 @@ const Module1 = () => {
       <div style={sidebarStyle}>
         <h3>Building Controls</h3>
         <div style={controlStyle}>
+          <label>Building Type: </label>
+          <select
+            style={inputStyle}
+            value={buildingType}
+            onChange={(e) => setBuildingType(e.target.value)}
+          >
+            <option value="">Select building type</option>
+            {buildingTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={controlStyle}>
           <label>Width (m): </label>
           <input
             type="number"
+            style={inputStyle}
             value={buildingWidth}
             onChange={(e) => setBuildingWidth(Number(e.target.value))}
             min="1"
@@ -396,6 +424,7 @@ const Module1 = () => {
           <label>Height (m): </label>
           <input
             type="number"
+            style={inputStyle}
             value={buildingHeight}
             onChange={(e) => setBuildingHeight(Number(e.target.value))}
             min="1"
@@ -403,19 +432,37 @@ const Module1 = () => {
           />
         </div>
         <div style={controlStyle}>
+          <label>Rotation (degrees): </label>
+          <input
+            type="number"
+            style={inputStyle}
+            value={buildingRotation}
+            onChange={(e) => setBuildingRotation(Number(e.target.value))}
+            min="0"
+            max="360"
+          />
+        </div>
+        <div style={controlStyle}>
           <label>Color: </label>
           <input
             type="color"
+            style={inputStyle}
             value={buildingColor}
             onChange={(e) => setBuildingColor(e.target.value)}
           />
         </div>
-        <button style={buttonStyle} onClick={handleAddBuilding}>
+        
+        <button 
+          style={buttonStyle} 
+          onClick={handleAddBuilding}
+          disabled={!clickedLocation || !buildingType}
+        >
           Add Building
         </button>
+
         {selectedBuilding && (
-          <>
-            <h4>Selected Building</h4>
+          <div style={{ marginTop: '20px' }}>
+            <h4>Selected Building #{selectedBuilding.id}</h4>
             <button style={buttonStyle} onClick={handleUpdateBuilding}>
               Update Building
             </button>
@@ -423,33 +470,44 @@ const Module1 = () => {
               style={{
                 ...buttonStyle,
                 backgroundColor: '#dc3545',
+                marginTop: '5px',
               }}
               onClick={() => handleDeleteBuilding(selectedBuilding.id)}
             >
               Delete Building
             </button>
-          </>
+          </div>
         )}
-        <h3>List</h3>
-        <select
-        id="building-select"
-        value={selectedBuilding}
-        onChange={handleChange}
-      >
-        <option value="" disabled>
-          Choose a building
-        </option>
-        {building.map((building, index) => (
-          <option key={index} value={building}>
-            {building}
-          </option>
-        ))}
-      </select>
-      {selectedBuilding && (
-        <p>
-          <strong>Selected Building:</strong> {selectedBuilding}
-        </p>
-      )}
+
+        <h3 style={{ marginTop: '20px' }}>Buildings List</h3>
+        <div>
+          {buildings.map((building) => (
+            <div
+              key={building.id}
+              style={building.id === selectedBuilding?.id ? selectedBuildingItemStyle : buildingItemStyle}
+              onClick={() => handleSelectBuilding(building)}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <strong>#{building.id}</strong>
+                  <div>{building.type || 'Unknown type'}</div>
+                  <div style={{ fontSize: '0.9em', color: '#666' }}>
+                    {building.width}m × {building.height}m
+                  </div>
+                </div>
+                <div
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    backgroundColor: building.color,
+                    borderRadius: '4px',
+                    border: '1px solid #ddd'
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
