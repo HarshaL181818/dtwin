@@ -4,6 +4,8 @@ import HomePage from "./pages/HomePage";
 import FeaturesPage from "./pages/FeaturesPage";
 import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
+import Visualization from "./component/MapComponent/Visualization";
+// import Module1 from "./component/MapComponent/Module1";
 import './App.css'
 
 function App() {
@@ -14,6 +16,11 @@ function App() {
         <Route path="/features" element={<FeaturesPage />} /> 
         <Route path="/about" element={<AboutPage />} /> 
         <Route path="/contact" element={<ContactPage />} /> 
+        <Route path="/features/Visualization" element={<Visualization />} /> 
+        {/* <Route path="/features/module1" element={<Module1 />} />
+        <Route path="/features/Visualization" element={<Visualization />} /> 
+        <Route path="/features/Visualization/pollution" element={< />} />
+        <Route path="/features/Visualization/traffic" element={< />} /> */}
       </Routes>    
     </Router>
   );
