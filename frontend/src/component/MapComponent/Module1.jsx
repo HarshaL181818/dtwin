@@ -4,7 +4,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import RouteManager from './RoutesManager';
 
-mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
+mapboxgl.accessToken = import.meta.env.REACT_APP_MAPBOX_TOKEN;
 
 const Module1 = () => {
   const mapContainerRef = useRef(null);

@@ -21,7 +21,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-transparent p-4 custom-navbar">
+    <nav className="bg-transparent custom-navbar">
       <ul className="flex justify-center space-x-14">
         {["home", "features", "about", "contact"].map((section) => (
           <li key={section}>

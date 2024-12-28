@@ -9,7 +9,7 @@ const HomePage = () => {
       <div id="canvas-container">
         <CitySceneCanvas />
         <div id="gradient-overlay"></div>
-        <div id="content-overlay">
+        <div id="content-overlay" className="mt-5">
             <Navbar />
           <div>
             <h1>Digital Twin for Better City Planning</h1>
