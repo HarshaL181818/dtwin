@@ -3,8 +3,9 @@ import axios from 'axios';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import RouteManager from './RoutesManager';
+import PolygonAQIManager from '../AnalysisComponent/PolygonAQIManager';
 
-mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
+mapboxgl.accessToken = import.meta.env.VITE_REACT_APP_MAPBOX_TOKEN;
 
 const Module1 = () => {
   const mapContainerRef = useRef(null);
@@ -26,10 +27,10 @@ const Module1 = () => {
     "Office Building",
     "Factory/Warehouse",
     "Power Plant",
-    "Transport Hub",
+    "Transport Hub", 
     "Educational Institution",
     "Government Office",
-    "Park",
+    "Park", 
     "Cinema/Entertainment",
     "Gym/Sports Arena",
     "Healthcare Facility",
@@ -390,9 +391,9 @@ const Module1 = () => {
 
   return (
     <div style={containerStyle}>
-      <div style={mapStyle} ref={mapContainerRef} />
-      <RouteManager map={map} />
-      <div style={sidebarStyle}>
+    <div style={mapStyle} ref={mapContainerRef} />
+    {map && <RouteManager map={map} />} 
+    <div style={sidebarStyle}>
         <h3>Building Controls</h3>
         <div style={controlStyle}>
           <label>Building Type: </label>
