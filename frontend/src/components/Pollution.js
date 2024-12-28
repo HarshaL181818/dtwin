@@ -142,16 +142,17 @@ const Pollution = () => {
               ['linear'],
               ['get', 'aqi'],
               0,
-              '#39FF14', // Neon Green (for low AQI)
+              '#00FF00', // Green (for low AQI)
               50,
-              '#00FFFF', // Cyan
+              '#FFFF00', // Yellow
               100,
-              '#FF00FF', // Purple for high AQI
+              '#FF0000', // Red
               200,
-              '#FF5733', // Neon Orange
+              '#800080', // Purple (for high AQI)
             ],
             'fill-opacity': 0.8,
           },
+          
         });
 
         // Adding hexagon outlines

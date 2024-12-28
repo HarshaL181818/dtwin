@@ -232,7 +232,7 @@ Provide insights:
         {error && <div className="text-danger mt-3">{error}</div>}
         {geminiResponse && (
           <div className="gemini-response mt-3">
-            <h6>Gemini Insights:</h6>
+            <h6>Insights:</h6>
             <p>{geminiResponse}</p>
           </div>
         )}
