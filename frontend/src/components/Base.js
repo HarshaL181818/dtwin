@@ -15,9 +15,6 @@ function Base() {
         <Link to="/Visualization">
           <button>Go to Visualization</button>
         </Link>
-        <Link to="/Shortest">
-          <button>Routing</button>
-        </Link>
       </div>
     </div>
   );
