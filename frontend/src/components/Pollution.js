@@ -11,12 +11,10 @@ const Pollution = () => {
   const [map, setMap] = useState(null);
   const [isClickListenerEnabled, setIsClickListenerEnabled] = useState(false);
 
-  const hexagonRadius = 0.08; // radius of 0.08 degrees around the center
-
   useEffect(() => {
     const mapInstance = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: isDarkMode ? 'mapbox://styles/mapbox/streets-v12' : 'mapbox://styles/mapbox/light-v11',
+      style: isDarkMode ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
       center: [77.209, 28.6139],
       zoom: 8,
       pitch: 60,
@@ -26,13 +24,62 @@ const Pollution = () => {
     setMap(mapInstance);
 
     mapInstance.on('load', () => {
-      mapInstance.setLight({
-        anchor: 'viewport',
-        color: 'white',
-        intensity: 1.5,
-        position: [200, 80],
+      mapInstance.addSource('heatmap-data', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: []
+        }
       });
 
+      // Add heatmap layer
+      mapInstance.addLayer({
+        id: 'aqi-heat',
+        type: 'heatmap',
+        source: 'heatmap-data',
+        paint: {
+          // Increase the heatmap weight based on AQI value
+          'heatmap-weight': [
+            'interpolate',
+            ['linear'],
+            ['get', 'aqi'],
+            0, 0,
+            200, 1
+          ],
+          // Increase the heatmap color weight by zoom level
+          'heatmap-intensity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            0, 1,
+            15, 3
+          ],
+          // Color gradient based on AQI values
+          'heatmap-color': [
+            'interpolate',
+            ['linear'],
+            ['heatmap-density'],
+            0, 'rgba(0, 255, 0, 0)',
+            0.2, 'rgb(0, 255, 0)',
+            0.4, 'rgb(255, 255, 0)',
+            0.6, 'rgb(255, 128, 0)',
+            0.8, 'rgb(255, 0, 0)',
+            1, 'rgb(128, 0, 128)'
+          ],
+          // Adjust the radius by zoom level
+          'heatmap-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            0, 20,
+            15, 50
+          ],
+          // Opacity based on zoom level
+          'heatmap-opacity': 0.8
+        }
+      });
+
+      // Add 3D buildings
       mapInstance.addLayer({
         id: '3d-buildings',
         source: 'composite',
@@ -43,7 +90,7 @@ const Pollution = () => {
           'fill-extrusion-color': '#444444',
           'fill-extrusion-height': ['get', 'height'],
           'fill-extrusion-base': ['get', 'min_height'],
-          'fill-extrusion-opacity': 1,
+          'fill-extrusion-opacity': 0.6,
         },
       });
     });
@@ -69,110 +116,50 @@ const Pollution = () => {
     }
   };
 
-  // Create hexagon shape
-  const createHexagon = (center, radius) => {
-    const hexagonCoordinates = [];
-    for (let i = 0; i < 6; i++) {
-      const angle = Math.PI / 3 * i;
-      const offsetLng = radius * Math.cos(angle);
-      const offsetLat = radius * Math.sin(angle);
-      hexagonCoordinates.push([center[0] + offsetLng, center[1] + offsetLat]);
-    }
-    hexagonCoordinates.push(hexagonCoordinates[0]);
-    return {
-      type: 'Feature',
-      geometry: {
-        type: 'Polygon',
-        coordinates: [hexagonCoordinates],
-      },
-      properties: {
-        center: center,
-      },
-    };
-  };
-
   useEffect(() => {
     if (map && isClickListenerEnabled) {
       const handleClick = async (event) => {
         const { lng, lat } = event.lngLat;
         console.log(`Clicked coordinates: Longitude ${lng}, Latitude ${lat}`);
 
-        const largeSquareSide = 1.5;
-        const divisions = 10;
+        const largeSquareSide = 0.3;
+        const divisions = 20; // Increased divisions for smoother heatmap
         const smallSquareSide = largeSquareSide / divisions;
-        const squares = [];
+        const points = [];
         const promises = [];
 
-        // Create a grid of hexagons
+        // Create a grid of points
         for (let i = 0; i < divisions; i++) {
           for (let j = 0; j < divisions; j++) {
             const offsetX = (i - divisions / 2 + 0.5) * smallSquareSide;
             const offsetY = (j - divisions / 2 + 0.5) * smallSquareSide;
-            const smallSquareCenter = [lng + offsetX, lat + offsetY];
-            const hexagon = createHexagon(smallSquareCenter, hexagonRadius);
-            squares.push(hexagon);
-
+            const pointCenter = [lng + offsetX, lat + offsetY];
+            
             promises.push(
-              fetchAQI(smallSquareCenter[1], smallSquareCenter[0]).then((aqi) => {
-                hexagon.properties.aqi = aqi;
-                return hexagon;
-              })
+              fetchAQI(pointCenter[1], pointCenter[0]).then((aqi) => ({
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: pointCenter,
+                },
+                properties: {
+                  aqi: aqi || 0,
+                }
+              }))
             );
           }
         }
 
-        const squaresWithAQI = await Promise.all(promises);
+        const pointsWithAQI = await Promise.all(promises);
 
-        map.addSource('hexagon-grid', {
-          type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: squaresWithAQI,
-          },
-        });
-
-        // Adding the hexagon grid layer with radial gradient fill (simulated)
-        map.addLayer({
-          id: 'hexagon-grid-layer',
-          type: 'fill',
-          source: 'hexagon-grid',
-          paint: {
-            'fill-color': [
-              'interpolate',
-              ['linear'],
-              ['get', 'aqi'],
-              0,
-              '#00FF00', // Green (for low AQI)
-              50,
-              '#FFFF00', // Yellow
-              100,
-              '#FF0000', // Red
-              200,
-              '#800080', // Purple (for high AQI)
-            ],
-            'fill-opacity': 0.8,
-          },
-          
-        });
-
-        // Adding hexagon outlines
-        map.addLayer({
-          id: 'hexagon-grid-outline',
-          type: 'line',
-          source: 'hexagon-grid',
-          paint: {
-            'line-color': '#ffffff',
-            'line-width': 1,
-          },
-        });
-
-        squaresWithAQI.forEach((hexagon) => {
-          console.log(`Hexagon center: ${hexagon.properties.center}, AQI: ${hexagon.properties.aqi}`);
+        // Update the heatmap data source
+        map.getSource('heatmap-data').setData({
+          type: 'FeatureCollection',
+          features: pointsWithAQI.filter(point => point.properties.aqi !== null),
         });
       };
 
       map.on('click', handleClick);
-
       return () => map.off('click', handleClick);
     }
   }, [map, isClickListenerEnabled]);
@@ -199,7 +186,7 @@ const Pollution = () => {
         className="position-fixed top-0 start-0 p-4"
         style={{
           zIndex: 9999,
-          background: 'linear-gradient(135deg, #FF00FF, #00FFFF)', // Gradient background
+          background: 'linear-gradient(135deg, #FF00FF, #00FFFF)',
           width: '250px',
           height: '100vh',
           borderRadius: '20px',
@@ -227,7 +214,7 @@ const Pollution = () => {
           className={`btn ${isClickListenerEnabled ? 'btn-danger' : 'btn-success'}`}
           onClick={toggleClickListener}
           style={{
-            backgroundColor: '#FF5733', // Neon Orange
+            backgroundColor: '#FF5733',
             borderColor: '#FF5733',
             color: '#fff',
           }}
