@@ -8,18 +8,14 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 mapboxgl.accessToken = import.meta.env.VITE_REACT_APP_MAPBOX_TOKEN;
 const TOMTOM_API_KEY = import.meta.env.VITE_REACT_APP_TOMTOM_API_KEY;
-// Initialize genAI first
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_REACT_APP_GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-
-const Traffic = () => {
+const MapVisualization = () => {
   const mapContainerRef = useRef(null);
   const [map, setMap] = useState(null);
   const [route, setRoute] = useState([]);
   const [trafficInsights, setTrafficInsights] = useState([]);
-  const [requestCount, setRequestCount] = useState(0);
-  const [lastRequestTime, setLastRequestTime] = useState(Date.now());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [geminiResponse, setGeminiResponse] = useState('');
@@ -27,53 +23,103 @@ const Traffic = () => {
   useEffect(() => {
     const mapInstance = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/traffic-day-v2',
+      style: 'mapbox://styles/mapbox/dark-v11', // Force dark theme
       center: [77.209, 28.6139],
       zoom: 14,
       pitch: 60,
       bearing: -17.6,
     });
 
+    // Add traffic layer
+    mapInstance.on('load', () => {
+      mapInstance.addSource('traffic', {
+        'type': 'vector',
+        'url': 'mapbox://mapbox.mapbox-traffic-v1'
+      });
+
+      // Add traffic layer
+      mapInstance.addLayer({
+        'id': 'traffic-layer',
+        'type': 'line',
+        'source': 'traffic',
+        'source-layer': 'traffic',
+        'paint': {
+          'line-width': 2,
+          'line-color': [
+            'match',
+            ['get', 'congestion'],
+            'low', '#00ff00',
+            'moderate', '#ffff00',
+            'heavy', '#ff0000',
+            'severe', '#800000',
+            '#ffffff'
+          ]
+        }
+      });
+
+      // Add 3D buildings with darker color
+      mapInstance.addLayer({
+        id: '3d-buildings',
+        source: 'composite',
+        'source-layer': 'building',
+        filter: ['==', 'extrude', 'true'],
+        type: 'fill-extrusion',
+        paint: {
+          'fill-extrusion-color': '#1a1a1a',
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': ['get', 'min_height'],
+          'fill-extrusion-opacity': 0.8,
+        },
+      });
+    });
+
     mapInstance.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    
     const directions = new MapboxDirections({
       accessToken: mapboxgl.accessToken,
       unit: 'metric',
       profile: 'mapbox/driving',
+      alternatives: true,
+      congestion: true
     });
+    
     mapInstance.addControl(directions, 'top-left');
 
-    directions.on('route', async (e) => {
-      if (e.route?.length) {
-        const routeData = e.route[0].legs.flatMap((leg) =>
-          leg.steps.map((step) => step.maneuver.location)
-        );
-        setRoute(routeData);
-
-        const insights = [];
-        for (const [index, coord] of routeData.entries()) {
-          const trafficData = await fetchTrafficData(coord);
-          if (trafficData) {
-            const { currentSpeed, freeFlowSpeed } = trafficData;
-            const speedDiff = freeFlowSpeed - currentSpeed;
-            insights.push({
-              coordinates: coord,
-              speedDiff,
-              currentSpeed,
-              freeFlowSpeed,
-            });
-          } else {
-            insights.push({ coordinates: coord, speedDiff: null });
-          }
-        }
-        setTrafficInsights(insights);
-
-        logGeminiQuery(insights); // Log the Gemini API query
-      }
-    });
-
+    directions.on('route', handleRoute);
     setMap(mapInstance);
+
     return () => mapInstance.remove();
   }, []);
+
+  const handleRoute = async (e) => {
+    if (e.route?.length) {
+      const routeData = e.route[0].legs.flatMap(leg => 
+        leg.steps.map(step => step.maneuver.location)
+      );
+      setRoute(routeData);
+      await fetchTrafficInsights(routeData);
+    }
+  };
+
+  const fetchTrafficInsights = async (routeData) => {
+    try {
+      const insights = [];
+      for (const coord of routeData) {
+        const trafficData = await fetchTrafficData(coord);
+        if (trafficData) {
+          insights.push({
+            coordinates: coord,
+            ...trafficData
+          });
+        }
+      }
+      setTrafficInsights(insights);
+      await logGeminiQuery(insights);
+    } catch (error) {
+      console.error('Error fetching traffic insights:', error);
+      setError('Failed to fetch traffic data');
+    }
+  };
 
   const fetchTrafficData = async ([lng, lat]) => {
     try {
@@ -81,125 +127,110 @@ const Traffic = () => {
         `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point=${lat},${lng}&key=${TOMTOM_API_KEY}`
       );
       const data = await response.json();
-      return data.flowSegmentData || null;
+      if (data && data.flowSegmentData) {
+        return {
+          currentSpeed: data.flowSegmentData.currentSpeed || 0,
+          freeFlowSpeed: data.flowSegmentData.freeFlowSpeed || 0,
+          speedDiff: (data.flowSegmentData.freeFlowSpeed || 0) - (data.flowSegmentData.currentSpeed || 0)
+        };
+      }
+      return null;
     } catch (error) {
       console.error('Failed to fetch traffic data:', error);
       return null;
     }
   };
 
-  const logGeminiQuery = (insights) => {
-    const formattedData = insights
-      .map(
-        ({ coordinates, speedDiff }) =>
-          `[${coordinates[0].toFixed(5)}, ${coordinates[1].toFixed(5)}]: Diff: ${speedDiff ?? 'N/A'}`
-      )
-      .join('\n');
+  const logGeminiQuery = async (insights) => {
+    try {
+      setLoading(true);
+      setError('');
 
-    const query = `Here are the coordinates of steps in a route along with the difference between free flow and current speed:
+      if (!insights || insights.length === 0) {
+        throw new Error('No traffic insights available');
+      }
+
+      const formattedData = insights
+        .map(({ coordinates, currentSpeed, freeFlowSpeed, speedDiff }) =>
+          `Location [${coordinates[0].toFixed(5)}, ${coordinates[1].toFixed(5)}]: ` +
+          `Current Speed: ${currentSpeed}km/h, Free Flow: ${freeFlowSpeed}km/h, ` +
+          `Difference: ${speedDiff.toFixed(1)}km/h`
+        )
+        .join('\n');
+
+      const query = `Analyze this traffic data and provide insights:
 ${formattedData}
 
-Provide insights:
-- Is the congestion high, low, or moderate?
-- What is the primary cause of congestion on this route?
-- Suggest solutions to reduce congestion effectively.
-- Answer in short in around 7 lines and only say important points (no need to explain if there is low congestion, just say there,s low congestion) without any bold of italic characters`;
+Please provide:
+1. Overall congestion level (high/moderate/low)
+2. Main congestion points
+3. Quick recommendations
+Keep it brief and clear.`;
 
-    console.log(query);
-    fetchGeminiResponse(query);
-  };
-
-  const fetchGeminiResponse = async (query) => {
-    const currentTime = Date.now();
-
-    // Check if the limit of 15 requests per minute is exceeded
-    if (requestCount >= 15 && currentTime - lastRequestTime < 60000) {
-      setError('Request limit exceeded. Please wait before trying again.');
-      return;
-    }
-
-    // Reset the counter after 1 minute
-    if (currentTime - lastRequestTime >= 60000) {
-      setRequestCount(0);
-      setLastRequestTime(currentTime);
-    }
-      // Assuming you have a model for generating content
-      // For now, we simulate the API response with a static answer
-      try {
-        setLoading(true);
-        setRequestCount((prevCount) => prevCount + 1); // Increment the request counter
-  
-        const prompt = query;
-        const result = await model.generateContent(prompt);
-  
-        setGeminiResponse(result.response.text()); // Set the response content
-      } catch (err) {
-        setError(`Failed to fetch Gemini response: ${err.message}`);
-      } finally {
-        setLoading(false);
+      const result = await model.generateContent(query);
+      const response = result.response;
+      if (response && response.text) {
+        setGeminiResponse(response.text());
+      } else {
+        throw new Error('Invalid response from Gemini API');
       }
+    } catch (err) {
+      setError(`Failed to fetch Gemini response: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const startSimulation = () => {
-    if (!route.length) {
-      console.error('No route available for simulation.');
-      return;
-    }
-    map.jumpTo({ center: route[0], zoom: 16, essential: true });
-    animateVehicle();
-  };
-
-  const animateVehicle = () => {
-    if (!route.length) {
-      console.error('No route available for simulation.');
-      return;
-    }
-
+    if (!route.length || !map) return;
+    
     const vehicleElement = document.createElement('div');
     Object.assign(vehicleElement.style, {
       width: '20px',
       height: '20px',
-      backgroundColor: 'red',
+      backgroundColor: '#00ff00',
       borderRadius: '50%',
+      border: '2px solid #ffffff',
       position: 'absolute',
     });
-    const vehicleMarker = new mapboxgl.Marker(vehicleElement).setLngLat(route[0]).addTo(map);
+    
+    const vehicleMarker = new mapboxgl.Marker(vehicleElement)
+      .setLngLat(route[0])
+      .addTo(map);
 
     let index = 0;
 
-    const moveVehicle = () => {
-      if (index < route.length - 1) {
-        const start = route[index];
-        const end = route[index + 1];
-        const steps = 60;
-        let step = 0;
+    const animate = () => {
+      if (index >= route.length - 1) return;
 
-        const interpolate = () => {
-          if (step <= steps) {
-            const progress = step / steps;
-            const interpolated = start.map((coord, i) => coord + (end[i] - coord) * progress);
-            vehicleMarker.setLngLat(interpolated);
-            map.setCenter(interpolated);
-            step++;
-            requestAnimationFrame(interpolate);
-          } else {
-            index++;
-            moveVehicle();
-          }
-        };
+      const start = route[index];
+      const end = route[index + 1];
+      const steps = 60;
+      let step = 0;
 
-        interpolate();
-      } else {
-        console.log('Animation completed');
-      }
+      const interpolate = () => {
+        if (step <= steps) {
+          const progress = step / steps;
+          const pos = start.map((coord, i) => coord + (end[i] - coord) * progress);
+          vehicleMarker.setLngLat(pos);
+          map.setCenter(pos);
+          step++;
+          requestAnimationFrame(interpolate);
+        } else {
+          index++;
+          animate();
+        }
+      };
+
+      interpolate();
     };
 
     map.flyTo({ center: route[0], zoom: 16, essential: true });
-    moveVehicle();
+    animate();
   };
 
   return (
-    <div style={{ position: 'relative', height: '100vh' }}>
+    <div style={{ position: 'relative', height: '100vh', background: '#000' }}>
       <div
         ref={mapContainerRef}
         style={{ width: '100%', height: '100vh', position: 'absolute', top: 0, left: 0 }}
@@ -208,38 +239,47 @@ Provide insights:
         className="position-fixed top-0 end-0 p-4"
         style={{
           zIndex: 9999,
-          background: 'rgba(255, 255, 255, 0.9)',
+          background: 'rgba(0, 0, 0, 0.9)',
           width: '250px',
           height: '100vh',
-          borderRadius: '20px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+          color: '#fff'
         }}
       >
-        <h5>Traffic Simulation</h5>
-        <button onClick={startSimulation} className="btn btn-primary mb-3">
+        <h5 className="text-white mb-4">Traffic Simulation</h5>
+        <button 
+          onClick={startSimulation} 
+          className="btn btn-success w-100 mb-3"
+        >
           Start Simulation
         </button>
+
         {loading && (
-          <div className="d-flex align-items-center justify-content-center">
+          <div className="d-flex align-items-center justify-content-center text-white">
             <div
-              className="spinner-border text-primary"
+              className="spinner-border text-light"
               role="status"
               style={{ width: '1.5rem', height: '1.5rem', marginRight: '10px' }}
             />
-            <span>Fetching insights...</span>
+            <span>Analyzing traffic...</span>
           </div>
         )}
-        {error && <div className="text-danger mt-3">{error}</div>}
+
+        {error && (
+          <div className="text-danger mt-3">
+            {error}
+          </div>
+        )}
+
         {geminiResponse && (
-          <div className="gemini-response mt-3">
-            <h6>Insights:</h6>
-            <p>{geminiResponse}</p>
+          <div className="mt-3">
+            <h6 className="text-white">Traffic Insights:</h6>
+            <p className="text-white-50 small">{geminiResponse}</p>
           </div>
         )}
       </div>
     </div>
   );
-  
 };
 
-export default Traffic;
+export default MapVisualization;
