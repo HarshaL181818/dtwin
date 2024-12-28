@@ -6,10 +6,10 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
-const TOMTOM_API_KEY = process.env.REACT_APP_TOMTOM_API_KEY;
+mapboxgl.accessToken = import.meta.env.VITE_REACT_APP_MAPBOX_TOKEN;
+const TOMTOM_API_KEY = import.meta.env.VITE_REACT_APP_TOMTOM_API_KEY;
 // Initialize genAI first
-const genAI = new GoogleGenerativeAI(process.env.REACT_APP_GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_REACT_APP_GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 

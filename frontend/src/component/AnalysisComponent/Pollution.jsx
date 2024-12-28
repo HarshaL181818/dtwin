@@ -3,7 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
+mapboxgl.accessToken = import.meta.env.VITE_REACT_APP_MAPBOX_TOKEN;
 
 const Pollution = () => {
   const mapContainerRef = useRef(null);
@@ -54,7 +54,7 @@ const Pollution = () => {
   const fetchAQI = async (lat, lng) => {
     try {
       const response = await fetch(
-        `https://api.waqi.info/feed/geo:${lat};${lng}/?token=${process.env.REACT_APP_AQICN_TOKEN}`
+        `https://api.waqi.info/feed/geo:${lat};${lng}/?token=${import.meta.env.VITE_REACT_APP_AQICN_TOKEN}`
       );
       const data = await response.json();
       if (data.status === 'ok') {

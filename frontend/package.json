@@ -10,18 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-<<<<<<< HEAD
-    "@react-three/drei": "^9.120.4",
-    "@react-three/fiber": "^8.17.10",
-=======
     "@google/generative-ai": "^0.21.0",
+    "@mapbox/mapbox-gl-directions": "^4.3.1",
     "@react-three/drei": "^9.120.4",
     "@react-three/fiber": "^8.17.10",
     "axios": "^1.7.9",
     "bootstrap": "^5.3.3",
     "dotenv": "^16.4.7",
     "mapbox-gl": "^3.9.1",
->>>>>>> restore-vite-branch
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.1",
