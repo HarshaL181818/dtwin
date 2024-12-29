@@ -120,8 +120,8 @@ const Pollution = () => {
       const { lng, lat } = event.lngLat;
       console.log(`Clicked coordinates: Longitude ${lng}, Latitude ${lat}`);
 
-      const largeSquareSide = 0.3;
-      const divisions = 25;
+      const largeSquareSide = 0.2;
+      const divisions = 20;
       const smallSquareSide = largeSquareSide / divisions;
       const promises = [];
 
