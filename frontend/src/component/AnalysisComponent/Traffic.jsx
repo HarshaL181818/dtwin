@@ -165,7 +165,7 @@ Please provide:
 1. Overall congestion level (high/moderate/low)
 2. Main congestion points
 3. Quick recommendations
-Keep it brief and clear.`;
+Keep it brief and clear without bold or quotes and answer in sentences`;
 
       const result = await model.generateContent(query);
       const response = result.response;

@@ -4,6 +4,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import RouteManager from './RoutesManager';
 import BuildingManager from './BuildingManager';
+import { getAQIColor } from '../../utils/aqiUtils';
 
 mapboxgl.accessToken = import.meta.env.VITE_REACT_APP_MAPBOX_TOKEN;
 
@@ -13,7 +14,6 @@ const Module1 = () => {
   const [map, setMap] = useState(null);
   const [clickedLocation, setClickedLocation] = useState(null);
   const [aqiData, setAqiData] = useState([]);
-  const clickMarkerRef = useRef(null);
   const [isGridFixed, setIsGridFixed] = useState(false);
   const [gridData, setGridData] = useState(null);
 
@@ -25,49 +25,40 @@ const Module1 = () => {
       const data = await response.json();
       if (data.status === 'ok') {
         return data.data.aqi;
-      } else {
-        console.error('Failed to fetch AQI data');
-        return null;
       }
+      return null;
     } catch (error) {
       console.error('Error fetching AQI:', error);
       return null;
     }
   };
 
-  const getAQIColor = (aqi) => {
-    if (aqi <= 50) return '#66ff66';
-    if (aqi <= 100) return '#ffff66';
-    if (aqi <= 150) return '#ff9966';
-    if (aqi <= 200) return '#ff6666';
-    if (aqi <= 300) return '#cc33cc';
-    return '#cc0000';
-  };
+  const updateGridWithAQIData = (aqiDataToUpdate) => {
+    const updatedFeatures = aqiDataToUpdate.map(data => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[
+          [data.coordinates[0] - 0.00083, data.coordinates[1] + 0.00083],
+          [data.coordinates[0] + 0.00083, data.coordinates[1] + 0.00083],
+          [data.coordinates[0] + 0.00083, data.coordinates[1] - 0.00083],
+          [data.coordinates[0] - 0.00083, data.coordinates[1] - 0.00083],
+          [data.coordinates[0] - 0.00083, data.coordinates[1] + 0.00083]
+        ]]
+      },
+      properties: {
+        color: getAQIColor(data.aqi || 0),
+        sectorId: data.sectorId
+      }
+    }));
 
-  const handlePostData = async () => {
-    if (!gridData) {
-      console.log('No grid data available to post');
-      return;
+    if (mapInstanceRef.current && mapInstanceRef.current.getSource('grid-data')) {
+      mapInstanceRef.current.getSource('grid-data').setData({
+        type: 'FeatureCollection',
+        features: updatedFeatures
+      });
     }
-
-    const dataToPost = {
-      timestamp: new Date().toISOString(),
-      centerCoordinates: clickedLocation,
-      gridSectors: aqiData.map((data, index) => ({
-        sectorId: index + 1,
-        coordinates: data.coordinates,
-        aqi: data.aqi
-      }))
-    };
-
-    try {
-      const response = await axios.post('/api/grid-data', dataToPost);
-      console.log('Data posted successfully:', response.data);
-      alert('Grid data posted successfully!');
-    } catch (error) {
-      console.error('Error posting data:', error);
-      alert('Failed to post grid data');
-    }
+    setGridData(updatedFeatures);
   };
 
   const generateGrid = async (coordinates) => {
@@ -76,44 +67,48 @@ const Module1 = () => {
     const smallSquareSide = largeSquareSide / divisions;
     const promises = [];
     const aqiCoordinates = [];
-
+  
     for (let i = 0; i < divisions; i++) {
       for (let j = 0; j < divisions; j++) {
         const offsetLng = coordinates[0] + (i - divisions / 2) * smallSquareSide;
         const offsetLat = coordinates[1] + (j - divisions / 2) * smallSquareSide;
-
+  
         const centerLat = offsetLat - smallSquareSide / 2;
         const centerLng = offsetLng + smallSquareSide / 2;
-
+  
         promises.push(
           fetchAQI(centerLat, centerLng).then((aqi) => {
+            const sectorId = i * divisions + j + 1;
             aqiCoordinates.push({
               coordinates: [centerLng, centerLat],
               aqi,
-              sectorId: i * divisions + j + 1
+              sectorId,
+              impactedBy: [],
+              originalAQI: aqi
             });
-
-            const topLeft = [offsetLng, offsetLat];
-            const topRight = [offsetLng + smallSquareSide, offsetLat];
-            const bottomRight = [offsetLng + smallSquareSide, offsetLat - smallSquareSide];
-            const bottomLeft = [offsetLng, offsetLat - smallSquareSide];
-
+  
             return {
               type: 'Feature',
               geometry: {
                 type: 'Polygon',
-                coordinates: [[topLeft, topRight, bottomRight, bottomLeft, topLeft]],
+                coordinates: [[
+                  [offsetLng, offsetLat],
+                  [offsetLng + smallSquareSide, offsetLat],
+                  [offsetLng + smallSquareSide, offsetLat - smallSquareSide],
+                  [offsetLng, offsetLat - smallSquareSide],
+                  [offsetLng, offsetLat]
+                ]]
               },
               properties: {
                 color: getAQIColor(aqi || 0),
-                sectorId: i * divisions + j + 1
-              },
+                sectorId
+              }
             };
           })
         );
       }
     }
-
+  
     const gridFeatures = await Promise.all(promises);
     return { gridFeatures, aqiCoordinates };
   };
@@ -127,7 +122,7 @@ const Module1 = () => {
         zoom: 15,
         pitch: 60,
         bearing: -45,
-        antialias: true,
+        antialias: true
       });
 
       mapInstance.on('load', () => {
@@ -147,7 +142,7 @@ const Module1 = () => {
               15,
               0,
               15.05,
-              ['get', 'height'],
+              ['get', 'height']
             ],
             'fill-extrusion-base': [
               'interpolate',
@@ -156,26 +151,20 @@ const Module1 = () => {
               15,
               0,
               15.05,
-              ['get', 'min_height'],
+              ['get', 'min_height']
             ],
-            'fill-extrusion-opacity': 0.6,
-          },
+            'fill-extrusion-opacity': 0.6
+          }
         });
 
         mapInstance.addSource('click-point', {
           type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: []
-          }
+          data: { type: 'FeatureCollection', features: [] }
         });
 
         mapInstance.addSource('grid-data', {
           type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: [],
-          },
+          data: { type: 'FeatureCollection', features: [] }
         });
 
         mapInstance.addLayer({
@@ -185,8 +174,8 @@ const Module1 = () => {
           paint: {
             'fill-color': ['get', 'color'],
             'fill-opacity': 0.4,
-            'fill-outline-color': '#FFFFFF',
-          },
+            'fill-outline-color': '#FFFFFF'
+          }
         });
 
         mapInstance.addLayer({
@@ -205,7 +194,6 @@ const Module1 = () => {
 
       mapInstanceRef.current = mapInstance;
       setMap(mapInstance);
-
       return mapInstance;
     };
 
@@ -231,20 +219,17 @@ const Module1 = () => {
           type: 'Feature',
           geometry: {
             type: 'Point',
-            coordinates: coordinates
-          },
-          properties: {}
+            coordinates
+          }
         }]
       });
 
       if (!isGridFixed) {
         const { gridFeatures, aqiCoordinates } = await generateGrid(coordinates);
-        
         mapInstanceRef.current.getSource('grid-data').setData({
           type: 'FeatureCollection',
-          features: gridFeatures,
+          features: gridFeatures
         });
-
         setGridData(gridFeatures);
         setAqiData(aqiCoordinates);
       }
@@ -259,11 +244,27 @@ const Module1 = () => {
     };
   }, [isGridFixed]);
 
+  const handlePostData = async () => {
+    if (!gridData) return;
+
+    try {
+      await axios.post('/api/grid-data', {
+        timestamp: new Date().toISOString(),
+        centerCoordinates: clickedLocation,
+        gridSectors: aqiData
+      });
+      alert('Grid data posted successfully!');
+    } catch (error) {
+      console.error('Error posting data:', error);
+      alert('Failed to post grid data');
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', height: '100vh', gap: '20px', padding: '10px' }}>
-      <div style={{ flexGrow: 1, height: '100%' }} ref={mapContainerRef} />
+    <div className="flex h-screen gap-5 p-2.5">
+      <div className="flex-grow h-full" ref={mapContainerRef} />
       {map && (
-        <div className="flex flex-col gap-4 overflow-auto" style={{ width: '300px' }}>
+        <div className="flex flex-col gap-4 w-72 overflow-auto">
           <div className="bg-white p-4 rounded-lg shadow">
             <button 
               onClick={() => setIsGridFixed(!isGridFixed)}
@@ -287,19 +288,30 @@ const Module1 = () => {
               <div className="mt-4">
                 <h3 className="font-bold mb-2">Sector Data:</h3>
                 <div className="max-h-96 overflow-y-auto">
-                  {aqiData.map((data, index) => (
-                    <div key={index} className="mb-2 p-2 bg-gray-100 rounded">
+                  {aqiData.map((data) => (
+                    <div key={data.sectorId} className="mb-2 p-2 bg-gray-100 rounded">
                       <p className="font-semibold">Sector {data.sectorId}</p>
-                      <p>Coordinates: [{data.coordinates[0].toFixed(4)}, {data.coordinates[1].toFixed(4)}]</p>
-                      <p>AQI: {data.aqi || 'N/A'}</p>
+                      <p>Original AQI: {data.originalAQI || 'N/A'}</p>
+                      <p>Current AQI: {data.aqi || 'N/A'}</p>
+                      {data.impactedBy?.length > 0 && (
+                        <p>Building Impacts: {data.impactedBy.map(b => 
+                          `#${b.buildingId}(${b.impact})`).join(', ')}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </div>
-          <RouteManager map={map} />
-          <BuildingManager map={map} clickedLocation={clickedLocation} />
+          
+          <BuildingManager 
+            map={map} 
+            clickedLocation={clickedLocation}
+            aqiData={aqiData}
+            setAqiData={setAqiData}
+            updateGridVisualization={updateGridWithAQIData}
+          />
         </div>
       )}
     </div>
