@@ -44,7 +44,7 @@ const Pollution = () => {
 
     mapInstance.on('load', () => {
       // Add the source
-      mapInstance.addSource('heatmap-data', {
+      mapInstance.addSource('grid-data', {
         type: 'geojson',
         data: {
           type: 'FeatureCollection',
@@ -52,45 +52,24 @@ const Pollution = () => {
         }
       });
 
-      // Add heatmap layer
+      // Add fill layer for coloring grid cells
       mapInstance.addLayer({
-        id: 'aqi-heat',
-        type: 'heatmap',
-        source: 'heatmap-data',
+        id: 'aqi-grid',
+        type: 'fill',
+        source: 'grid-data',
         paint: {
-          'heatmap-weight': [
+          'fill-color': [
             'interpolate',
             ['linear'],
             ['get', 'aqi'],
-            0, 0,
-            200, 1
+            0, '#00FF00', // Good (0-50)
+            51, '#FFFF00', // Moderate (51-100)
+            101, '#FF7F00', // Unhealthy for Sensitive Groups (101-150)
+            151, '#FF0000', // Unhealthy (151-200)
+            201, '#800080', // Very Unhealthy (201-300)
+            301, '#800000'  // Hazardous (301+)
           ],
-          'heatmap-intensity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            0, 1,
-            15, 3
-          ],
-          'heatmap-color': [
-            'interpolate',
-            ['linear'],
-            ['heatmap-density'],
-            0, 'rgba(0, 255, 0, 0)',
-            0.2, 'rgb(0, 255, 0)',
-            0.4, 'rgb(255, 255, 0)',
-            0.6, 'rgb(255, 128, 0)',
-            0.8, 'rgb(255, 0, 0)',
-            1, 'rgb(128, 0, 128)'
-          ],
-          'heatmap-radius': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            0, 20,
-            15, 50
-          ],
-          'heatmap-opacity': 0.8
+          'fill-opacity': 0.6,
         }
       });
 
@@ -137,8 +116,16 @@ const Pollution = () => {
             fetchAQI(pointCenter[1], pointCenter[0]).then((aqi) => ({
               type: 'Feature',
               geometry: {
-                type: 'Point',
-                coordinates: pointCenter,
+                type: 'Polygon',
+                coordinates: [
+                  [
+                    [lng + offsetX, lat + offsetY],
+                    [lng + offsetX + smallSquareSide, lat + offsetY],
+                    [lng + offsetX + smallSquareSide, lat + offsetY + smallSquareSide],
+                    [lng + offsetX, lat + offsetY + smallSquareSide],
+                    [lng + offsetX, lat + offsetY]
+                  ]
+                ]
               },
               properties: {
                 aqi: aqi || 0,
@@ -150,9 +137,9 @@ const Pollution = () => {
 
       const pointsWithAQI = await Promise.all(promises);
 
-      // Update the heatmap data source
-      if (map.getSource('heatmap-data')) {
-        map.getSource('heatmap-data').setData({
+      // Update the grid data source
+      if (map.getSource('grid-data')) {
+        map.getSource('grid-data').setData({
           type: 'FeatureCollection',
           features: pointsWithAQI.filter(point => point.properties.aqi !== null),
         });
@@ -172,84 +159,75 @@ const Pollution = () => {
       <Navbar />
       {/* Settings Panel */}
       <div
-  className="fixed left-0 p-6 w-64"
-  style={{
-    width: '100%',
-    height: '100vh',
-  }}
-/>
+        className="position-fixed left-0 p-4"
+        style={{
+          zIndex: 9999,
+          background: '#000000',
+          width: '250px',
+          height: '100vh',
+          borderRadius: '20px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          transition: 'transform 0.3s ease-in-out',
+          transform: 'translateX(0)', // Set initial position of the sidebar
+          top: '80px', // Adjust this value to shift the panel down
+        }}
+      >
+        <h5 className="text-xl font-bold text-white mb-6">Settings Panel</h5>
 
-<div
-  className="position-fixed left-0 p-4"
-  style={{
-    zIndex: 9999,
-    background: '#000000',
-    width: '250px',
-    height: '100vh',
-    borderRadius: '20px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-    transition: 'transform 0.3s ease-in-out',
-    transform: 'translateX(0)', // Set initial position of the sidebar
-    top: '80px', // Adjust this value to shift the panel down
-  }}
->
-  <h5 className="text-xl font-bold text-white mb-6">Settings Panel</h5>
+        <div className="space-y-4">
+          {/* Dark Mode Switch */}
+          <div className="flex items-center justify-between text-white">
+            <label htmlFor="darkModeSwitch" className="cursor-pointer">
+              {isDarkMode ? 'Dark Mode' : 'Light Mode'}
+            </label>
+            <input
+              className="form-check-input cursor-pointer"
+              type="checkbox"
+              checked={isDarkMode}
+              onChange={() => setIsDarkMode(!isDarkMode)}
+              id="darkModeSwitch"
+            />
+          </div>
 
-  <div className="space-y-4">
-    {/* Dark Mode Switch */}
-    <div className="flex items-center justify-between text-white">
-      <label htmlFor="darkModeSwitch" className="cursor-pointer">
-        {isDarkMode ? 'Dark Mode' : 'Light Mode'}
-      </label>
-      <input
-        className="form-check-input cursor-pointer"
-        type="checkbox"
-        checked={isDarkMode}
-        onChange={() => setIsDarkMode(!isDarkMode)}
-        id="darkModeSwitch"
-      />
-    </div>
+          {/* Click Listener Toggle */}
+          <button
+            onClick={() => setIsClickListenerEnabled(!isClickListenerEnabled)}
+            className={`w-full py-2 px-4 rounded-lg transition-all duration-300 ${
+              isClickListenerEnabled
+                ? 'bg-red-600 hover:bg-red-700'
+                : 'bg-blue-600 hover:bg-blue-700'
+            } text-white`}
+          >
+            {isClickListenerEnabled ? 'Disable Click Listener' : 'Enable Click Listener'}
+          </button>
+        </div>
+      </div>
 
-    {/* Click Listener Toggle */}
-    <button
-      onClick={() => setIsClickListenerEnabled(!isClickListenerEnabled)}
-      className={`w-full py-2 px-4 rounded-lg transition-all duration-300 ${
-        isClickListenerEnabled
-          ? 'bg-red-600 hover:bg-red-700'
-          : 'bg-blue-600 hover:bg-blue-700'
-      } text-white`}
-    >
-      {isClickListenerEnabled ? 'Disable Click Listener' : 'Enable Click Listener'}
-    </button>
-  </div>
-</div>
-
-{/* Main Content */}
-<div
-  className="flex-1 p-8 ml-64"
-  style={{
-    transition: 'margin-left 0.3s ease-in-out', // Smooth transition when content shifts
-    marginLeft: '250px', // Initial offset to make room for the settings panel
-  }}
->
-<div
-  className="rounded-2xl overflow-hidden border border-gray-800 shadow-2xl"
-  style={{
-    height: 'calc(100vh - 8rem)', // Adjust this value to make the map smaller vertically
-    marginTop: '80px', // Shifts the map container down
-  }}
->
-  {/* Map Container */}
-  <div
-    ref={mapContainerRef}
-    style={{
-      width: '100%',
-      height: '100%',
-    }}
-  />
-</div>
-</div>
-
+      {/* Main Content */}
+      <div
+        className="flex-1 p-8 ml-64"
+        style={{
+          transition: 'margin-left 0.3s ease-in-out', // Smooth transition when content shifts
+          marginLeft: '250px', // Initial offset to make room for the settings panel
+        }}
+      >
+        <div
+          className="rounded-2xl overflow-hidden border border-gray-800 shadow-2xl"
+          style={{
+            height: 'calc(100vh - 8rem)', // Adjust this value to make the map smaller vertically
+            marginTop: '80px', // Shifts the map container down
+          }}
+        >
+          {/* Map Container */}
+          <div
+            ref={mapContainerRef}
+            style={{
+              width: '100%',
+              height: '100%',
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 };
