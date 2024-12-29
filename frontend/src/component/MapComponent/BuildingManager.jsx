@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { calculateBuildingAQIImpact } from '../../utils/aqiImpactCalculator';
-import { getAQIColor } from '../../utils/aqiUtils';
-import '../../assets/styles/editorpage.css';
+import '../../assets/styles/editorpage.css'
 
-const BuildingManager = ({ map, clickedLocation, aqiData, setAqiData, updateGridVisualization }) => {
+const BuildingManager = ({ map, clickedLocation }) => {
   const [buildingWidth, setBuildingWidth] = useState(30);
   const [buildingHeight, setBuildingHeight] = useState(50);
   const [buildingColor, setBuildingColor] = useState('#ff0000');
@@ -129,37 +127,15 @@ const BuildingManager = ({ map, clickedLocation, aqiData, setAqiData, updateGrid
     });
   };
 
-  const updateAQIDisplay = (updatedAqiData) => {
-    const gridFeatures = updatedAqiData.map(sector => ({
-      type: 'Feature',
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [sector.coordinates[0] - 0.001, sector.coordinates[1] - 0.001],
-          [sector.coordinates[0] + 0.001, sector.coordinates[1] - 0.001],
-          [sector.coordinates[0] + 0.001, sector.coordinates[1] + 0.001],
-          [sector.coordinates[0] - 0.001, sector.coordinates[1] + 0.001],
-          [sector.coordinates[0] - 0.001, sector.coordinates[1] - 0.001]
-        ]]
-      },
-      properties: {
-        color: getAQIColor(sector.aqi),
-        sectorId: sector.sectorId
-      }
-    }));
-
-    updateGridVisualization(gridFeatures);
-  };
-
   const handleAddBuilding = async () => {
     if (!clickedLocation || !buildingType) {
       alert('Please select a location and building type');
       return;
     }
-
-    const size = buildingWidth / 111111;
+  
+    const size = buildingWidth / 111111; // Convert meters to degrees
     const coordinates = getRotatedCoordinates(clickedLocation, size, buildingRotation);
-
+  
     const newBuilding = {
       location: clickedLocation,
       coordinates: [coordinates],
@@ -169,54 +145,49 @@ const BuildingManager = ({ map, clickedLocation, aqiData, setAqiData, updateGrid
       rotation: buildingRotation,
       type: buildingType,
     };
-
+  
     try {
       const response = await axios.post(API_BASE_URL, newBuilding);
-      const addedBuilding = newBuilding;
+      const addedBuilding = response.data;
+  
       setBuildings(prev => [...prev, addedBuilding]);
       displayBuilding(addedBuilding);
-
-      // Calculate AQI impact if it's a market
-      if (buildingType === "Market/Shopping Area" && aqiData.length > 0) {
-        // Calculate the updated AQI data based on the building's impact
-        const updatedAqiData = calculateBuildingAQIImpact(addedBuilding, aqiData);
-      
-        // Update the AQI data state
-        setAqiData(updatedAqiData);
-        
-        // Log the updated AQI data list
-        console.log('Updated AQI data:', updatedAqiData);
-      }
-      
-      
-
+  
+      // Call the AQI update function
+      updateAQIForBuilding(addedBuilding);
+  
       setBuildingType('');
     } catch (error) {
       console.error('Failed to add building:', error);
       alert('Failed to add building. Please try again.');
     }
   };
-
+  
   const handleDeleteBuilding = async (buildingId) => {
     try {
       await axios.delete(`${API_BASE_URL}/${buildingId}`);
-
-      // Remove building from map
+  
+      // Remove from map
       const buildingLayerId = `building-${buildingId}`;
       const labelLayerId = `${buildingLayerId}-label`;
-
+  
       [buildingLayerId, labelLayerId].forEach(id => {
         if (map.getLayer(id)) map.removeLayer(id);
         if (map.getSource(id)) map.removeSource(id);
       });
-
-      setBuildings(prev => prev.filter(b => b.id !== buildingId));
-      setSelectedBuilding(null);
+  
+      const updatedBuildings = buildings.filter(b => b.id !== buildingId);
+      setBuildings(updatedBuildings);
+  
+      // Recalculate AQI
+      updateAQIForAllBuildings(updatedBuildings);
     } catch (error) {
       console.error('Failed to delete building:', error);
       alert('Failed to delete building. Please try again.');
     }
   };
+  
+  
 
   const handleUpdateBuilding = async () => {
     if (!selectedBuilding) return;
@@ -309,37 +280,35 @@ const BuildingManager = ({ map, clickedLocation, aqiData, setAqiData, updateGrid
             value={buildingType}
             onChange={(e) => setBuildingType(e.target.value)}
           >
-            <option value="">Select Building Type</option>
+            <option value="">Select building type</option>
             {buildingTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
+              <option key={type} value={type}>{type}</option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block mb-2">Building Width:</label>
+          <label className="block mb-2">Width (m):</label>
           <input
             type="number"
             className="w-full p-2 border rounded"
             value={buildingWidth}
-            onChange={(e) => setBuildingWidth(Number(e.target.value))}
+            onChange={(e) => setBuildingWidth(e.target.value)}
           />
         </div>
 
         <div>
-          <label className="block mb-2">Building Height:</label>
+          <label className="block mb-2">Height (m):</label>
           <input
             type="number"
             className="w-full p-2 border rounded"
             value={buildingHeight}
-            onChange={(e) => setBuildingHeight(Number(e.target.value))}
+            onChange={(e) => setBuildingHeight(e.target.value)}
           />
         </div>
 
         <div>
-          <label className="block mb-2">Building Color:</label>
+          <label className="block mb-2">Color:</label>
           <input
             type="color"
             className="w-full p-2 border rounded"
@@ -349,43 +318,74 @@ const BuildingManager = ({ map, clickedLocation, aqiData, setAqiData, updateGrid
         </div>
 
         <div>
-          <label className="block mb-2">Building Rotation:</label>
+          <label className="block mb-2">Rotation (degrees):</label>
           <input
             type="number"
             className="w-full p-2 border rounded"
             value={buildingRotation}
-            onChange={(e) => setBuildingRotation(Number(e.target.value))}
+            onChange={(e) => setBuildingRotation(e.target.value)}
           />
         </div>
 
-        <div>
-          <button
-            className="w-full p-3 bg-blue-500 text-white rounded"
-            onClick={handleAddBuilding}
-          >
-            Add Building
-          </button>
-        </div>
+        <button
+          className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          onClick={handleAddBuilding}
+          disabled={!clickedLocation || !buildingType}
+        >
+          {!clickedLocation ? 'Click on map first' : !buildingType ? 'Select building type' : 'Add Building'}
+        </button>
+      </div>
 
-        {selectedBuilding && (
-          <div>
+      {selectedBuilding && (
+        <div className="mt-6">
+          <h4 className="text-lg font-semibold mb-2">Selected Building #{selectedBuilding.id}</h4>
+          <div className="space-y-2">
             <button
-              className="w-full p-3 bg-red-500 text-white rounded"
-              onClick={() => handleDeleteBuilding(selectedBuilding.id)}
-            >
-              Delete Building
-            </button>
-            <button
-              className="w-full p-3 bg-yellow-500 text-white rounded"
+              className="w-full p-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
               onClick={handleUpdateBuilding}
             >
               Update Building
             </button>
+            <button
+              className="w-full p-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+              onClick={() => handleDeleteBuilding(selectedBuilding.id)}
+            >
+              Delete Building
+            </button>
           </div>
-        )}
+        </div>
+      )}
+
+<div className="mt-6">
+  <h3 className="text-lg font-semibold mb-4">Buildings List</h3>
+  <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+          {buildings.map((building) => (
+            <div
+              key={building.id}
+              className={`p-3 border rounded cursor-pointer hover:bg-gray-50 transition-colors ${
+                building.id === selectedBuilding?.id ? 'bg-gray-100 border-blue-500' : 'bg-white'
+              }`}
+              onClick={() => handleSelectBuilding(building)}
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <strong>#{building.id}</strong>
+                  <div>{building.type || 'Unknown type'}</div>
+                  <div className="text-sm text-gray-600">
+                    {building.width}m × {building.height}m
+                  </div>
+                </div>
+                <div
+                  className="w-6 h-6 rounded border"
+                  style={{ backgroundColor: building.color }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 };
 
-export default BuildingManager;
+export default BuildingManager

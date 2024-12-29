@@ -16,6 +16,7 @@ const Module1 = () => {
   const [aqiData, setAqiData] = useState([]);
   const [isGridFixed, setIsGridFixed] = useState(false);
   const [gridData, setGridData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const fetchAQI = async (lat, lng) => {
     try {
@@ -67,15 +68,15 @@ const Module1 = () => {
     const smallSquareSide = largeSquareSide / divisions;
     const promises = [];
     const aqiCoordinates = [];
-  
+
     for (let i = 0; i < divisions; i++) {
       for (let j = 0; j < divisions; j++) {
         const offsetLng = coordinates[0] + (i - divisions / 2) * smallSquareSide;
         const offsetLat = coordinates[1] + (j - divisions / 2) * smallSquareSide;
-  
+
         const centerLat = offsetLat - smallSquareSide / 2;
         const centerLng = offsetLng + smallSquareSide / 2;
-  
+
         promises.push(
           fetchAQI(centerLat, centerLng).then((aqi) => {
             const sectorId = i * divisions + j + 1;
@@ -86,7 +87,7 @@ const Module1 = () => {
               impactedBy: [],
               originalAQI: aqi
             });
-  
+
             return {
               type: 'Feature',
               geometry: {
@@ -108,7 +109,7 @@ const Module1 = () => {
         );
       }
     }
-  
+
     const gridFeatures = await Promise.all(promises);
     return { gridFeatures, aqiCoordinates };
   };
@@ -174,7 +175,7 @@ const Module1 = () => {
           paint: {
             'fill-color': ['get', 'color'],
             'fill-opacity': 0.4,
-            'fill-outline-color': '#FFFFFF'
+            'fill-outline-color': '#000000'
           }
         });
 
@@ -212,7 +213,7 @@ const Module1 = () => {
     const handleClick = async (e) => {
       const coordinates = [e.lngLat.lng, e.lngLat.lat];
       setClickedLocation(coordinates);
-      
+
       mapInstanceRef.current.getSource('click-point').setData({
         type: 'FeatureCollection',
         features: [{
@@ -225,7 +226,9 @@ const Module1 = () => {
       });
 
       if (!isGridFixed) {
+        setLoading(true);
         const { gridFeatures, aqiCoordinates } = await generateGrid(coordinates);
+        setLoading(false);
         mapInstanceRef.current.getSource('grid-data').setData({
           type: 'FeatureCollection',
           features: gridFeatures
@@ -266,23 +269,24 @@ const Module1 = () => {
       {map && (
         <div className="flex flex-col gap-4 w-72 overflow-auto">
           <div className="bg-white p-4 rounded-lg shadow">
-            <button 
+            <button
               onClick={() => setIsGridFixed(!isGridFixed)}
-              className={`mb-4 w-full py-2 px-4 rounded ${
-                isGridFixed ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
-              } text-white`}
+              className={`mb-4 w-full py-2 px-4 rounded ${isGridFixed ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
+                } text-white`}
             >
               {isGridFixed ? 'Unfix Grid' : 'Fix Grid'}
             </button>
-            
+
             {gridData && (
-              <button 
+              <button
                 onClick={handlePostData}
                 className="w-full py-2 px-4 rounded bg-green-500 hover:bg-green-600 text-white mb-4"
               >
                 Post Grid Data
               </button>
             )}
+
+            {loading && <p>Loading AQI data...</p>}
 
             {aqiData.length > 0 && (
               <div className="mt-4">
@@ -294,7 +298,7 @@ const Module1 = () => {
                       <p>Original AQI: {data.originalAQI || 'N/A'}</p>
                       <p>Current AQI: {data.aqi || 'N/A'}</p>
                       {data.impactedBy?.length > 0 && (
-                        <p>Building Impacts: {data.impactedBy.map(b => 
+                        <p>Building Impacts: {data.impactedBy.map(b =>
                           `#${b.buildingId}(${b.impact})`).join(', ')}
                         </p>
                       )}
@@ -304,14 +308,13 @@ const Module1 = () => {
               </div>
             )}
           </div>
-          
-          <BuildingManager 
-            map={map} 
+
+          <BuildingManager
+            map={map}
             clickedLocation={clickedLocation}
-            aqiData={aqiData}
-            setAqiData={setAqiData}
-            updateGridVisualization={updateGridWithAQIData}
           />
+          <RouteManager />
+
         </div>
       )}
     </div>
