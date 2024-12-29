@@ -8,6 +8,7 @@ import Visualization from "./component/MapComponent/Visualization";
 import Module1 from "./component/MapComponent/Module1";
 import Pollution from "./component/AnalysisComponent/Pollution";
 import Traffic from "./component/AnalysisComponent/Traffic";
+import PollutionControl from "./component/MapComponent/PollutionControl";
 import './App.css'
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
         <Route path="/features/visualization" element={<Visualization />} /> 
         <Route path="/features/visualization/pollution" element={<Pollution />} />
         <Route path="/features/visualization/traffic" element={<Traffic />} />
+        <Route path="/poll" element={<PollutionControl />} />
       </Routes>    
     </Router>
   );
