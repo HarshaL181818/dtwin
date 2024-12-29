@@ -27,12 +27,10 @@ const BuildingManager = ({ map, clickedLocation }) => {
     "Healthcare Facility",
   ];
 
-  // Load buildings on component mount
   useEffect(() => {
     loadBuildings();
   }, []);
 
-  // Update building visualization when buildings change
   useEffect(() => {
     if (map) {
       buildings.forEach(displayBuilding);
@@ -49,51 +47,53 @@ const BuildingManager = ({ map, clickedLocation }) => {
   };
 
   const displayBuilding = (building) => {
-    if (!map) return;
-  
+    if (!map || !building.coordinates || !building.coordinates[0]) return;
+
     const buildingId = `building-${building.id}`;
     const labelId = `${buildingId}-label`;
-    
+
     // Remove existing layers and sources
     [buildingId, labelId].forEach(id => {
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
     });
-  
+
     // Add building extrusion
     map.addSource(buildingId, {
       type: 'geojson',
       data: {
         type: 'Feature',
-        properties: {
-          height: building.height,
-          base: 0
-        },
         geometry: {
           type: 'Polygon',
           coordinates: building.coordinates
+        },
+        properties: {
+          height: building.height,
+          base: 0
         }
       }
     });
-  
+
     map.addLayer({
       id: buildingId,
       type: 'fill-extrusion',
       source: buildingId,
       paint: {
         'fill-extrusion-color': building.color,
-        'fill-extrusion-height': building.height,
-        'fill-extrusion-base': 0,
+        'fill-extrusion-height': ['get', 'height'],
+        'fill-extrusion-base': ['get', 'base'],
         'fill-extrusion-opacity': 0.8
       }
     });
 
-    // Add label
-    const center = building.coordinates[0].reduce((acc, curr) => [
+    // Calculate center point for label
+    const coords = building.coordinates[0];
+    const center = coords.reduce((acc, curr) => [
       acc[0] + curr[0],
       acc[1] + curr[1]
-    ], [0, 0]).map(coord => coord / building.coordinates[0].length);
+    ], [0, 0]).map(coord => coord / coords.length);
 
+    // Add label
     map.addSource(labelId, {
       type: 'geojson',
       data: {
@@ -132,12 +132,12 @@ const BuildingManager = ({ map, clickedLocation }) => {
       return;
     }
 
-    const size = buildingWidth / 111111;
+    const size = buildingWidth / 111111; // Convert meters to degrees
     const coordinates = getRotatedCoordinates(clickedLocation, size, buildingRotation);
 
     const newBuilding = {
       location: clickedLocation,
-      coordinates,
+      coordinates: [coordinates], // Ensure coordinates is an array of arrays
       width: buildingWidth,
       height: buildingHeight,
       color: buildingColor,
@@ -147,9 +147,11 @@ const BuildingManager = ({ map, clickedLocation }) => {
 
     try {
       const response = await axios.post(API_BASE_URL, newBuilding);
-      setBuildings(prev => [...prev, response.data]);
+      const addedBuilding = response.data;
+      setBuildings(prev => [...prev, addedBuilding]);
+      displayBuilding(addedBuilding);
       setBuildingType('');
-      displayBuilding(response.data);
+
     } catch (error) {
       console.error('Failed to add building:', error);
       alert('Failed to add building. Please try again.');
@@ -159,16 +161,16 @@ const BuildingManager = ({ map, clickedLocation }) => {
   const handleDeleteBuilding = async (buildingId) => {
     try {
       await axios.delete(`${API_BASE_URL}/${buildingId}`);
-      
+
       // Remove building from map
       const buildingLayerId = `building-${buildingId}`;
       const labelLayerId = `${buildingLayerId}-label`;
-      
+
       [buildingLayerId, labelLayerId].forEach(id => {
         if (map.getLayer(id)) map.removeLayer(id);
         if (map.getSource(id)) map.removeSource(id);
       });
-      
+
       setBuildings(prev => prev.filter(b => b.id !== buildingId));
       setSelectedBuilding(null);
     } catch (error) {
@@ -194,7 +196,7 @@ const BuildingManager = ({ map, clickedLocation }) => {
       color: buildingColor,
       rotation: buildingRotation,
       type: buildingType,
-      coordinates,
+      coordinates: [coordinates],
     };
 
     try {
@@ -228,7 +230,7 @@ const BuildingManager = ({ map, clickedLocation }) => {
         acc[0] + curr[0],
         acc[1] + curr[1]
       ], [0, 0]).map(coord => coord / building.coordinates[0].length);
-      
+
       map.flyTo({
         center: center,
         zoom: 17,
@@ -244,20 +246,19 @@ const BuildingManager = ({ map, clickedLocation }) => {
       [size / 2, -size / 2],
       [size / 2, size / 2],
       [-size / 2, size / 2],
+      [-size / 2, -size / 2], // Close the polygon
     ];
 
-    return [
-      points.map(([x, y]) => [
-        center[0] + x * Math.cos(rad) - y * Math.sin(rad),
-        center[1] + x * Math.sin(rad) + y * Math.cos(rad),
-      ]),
-    ];
+    return points.map(([x, y]) => [
+      center[0] + x * Math.cos(rad) - y * Math.sin(rad),
+      center[1] + x * Math.sin(rad) + y * Math.cos(rad),
+    ]);
   };
 
   return (
-    <div className="p-5 bg-gray-50">
+    <div className="p-5 bg-gray-50 w-80 overflow-auto max-h-screen">
       <h3 className="text-lg font-semibold mb-4">Building Controls</h3>
-      
+
       <div className="space-y-4">
         <div>
           <label className="block mb-2">Building Type:</label>
@@ -313,18 +314,18 @@ const BuildingManager = ({ map, clickedLocation }) => {
           <label className="block mb-2">Color:</label>
           <input
             type="color"
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border rounded h-12"
             value={buildingColor}
             onChange={(e) => setBuildingColor(e.target.value)}
           />
         </div>
 
         <button
-          className="w-full p-2 bg-blue-500 text-white rounded disabled:opacity-50"
+          className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           onClick={handleAddBuilding}
           disabled={!clickedLocation || !buildingType}
         >
-          Add Building
+          {!clickedLocation ? 'Click on map first' : !buildingType ? 'Select building type' : 'Add Building'}
         </button>
       </div>
 
@@ -333,13 +334,13 @@ const BuildingManager = ({ map, clickedLocation }) => {
           <h4 className="text-lg font-semibold mb-2">Selected Building #{selectedBuilding.id}</h4>
           <div className="space-y-2">
             <button
-              className="w-full p-2 bg-green-500 text-white rounded"
+              className="w-full p-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
               onClick={handleUpdateBuilding}
             >
               Update Building
             </button>
             <button
-              className="w-full p-2 bg-red-500 text-white rounded"
+              className="w-full p-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
               onClick={() => handleDeleteBuilding(selectedBuilding.id)}
             >
               Delete Building
@@ -354,9 +355,8 @@ const BuildingManager = ({ map, clickedLocation }) => {
           {buildings.map((building) => (
             <div
               key={building.id}
-              className={`p-3 border rounded cursor-pointer ${
-                building.id === selectedBuilding?.id ? 'bg-gray-100 border-blue-500' : 'bg-white'
-              }`}
+              className={`p-3 border rounded cursor-pointer hover:bg-gray-50 transition-colors ${building.id === selectedBuilding?.id ? 'bg-gray-100 border-blue-500' : 'bg-white'
+                }`}
               onClick={() => handleSelectBuilding(building)}
             >
               <div className="flex justify-between items-center">
