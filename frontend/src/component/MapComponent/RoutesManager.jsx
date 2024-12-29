@@ -208,7 +208,7 @@ const RouteManager = ({ map }) => {
   };
 
   return (
-    <div className="w-[280px] bg-gray-100 p-4 space-y-4 overflow-y-auto h-[50%]">
+    <div className="w-[280px] bg-gray-100 p-4 space-y-4 overflow-y-auto h-[45%] rounded-lg border border-gray-800">
       <h3 className="text-lg font-semibold">Route Controls</h3>
       <div>
         <input

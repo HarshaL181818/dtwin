@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import Navbar from '../Navbar/Navbar';
 
 mapboxgl.accessToken = import.meta.env.VITE_REACT_APP_MAPBOX_TOKEN;
 
@@ -168,71 +169,87 @@ const Pollution = () => {
 
   return (
     <div className="min-h-screen bg-black flex">
+      <Navbar />
       {/* Settings Panel */}
       <div
-        className="fixed left-0 top-0 h-screen p-6 w-64"
-        style={{
-          width: '100%',
-          height: '100vh',
-        }}
+  className="fixed left-0 p-6 w-64"
+  style={{
+    width: '100%',
+    height: '100vh',
+  }}
+/>
+
+<div
+  className="position-fixed left-0 p-4"
+  style={{
+    zIndex: 9999,
+    background: '#000000',
+    width: '250px',
+    height: '100vh',
+    borderRadius: '20px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+    transition: 'transform 0.3s ease-in-out',
+    transform: 'translateX(0)', // Set initial position of the sidebar
+    top: '80px', // Adjust this value to shift the panel down
+  }}
+>
+  <h5 className="text-xl font-bold text-white mb-6">Settings Panel</h5>
+
+  <div className="space-y-4">
+    {/* Dark Mode Switch */}
+    <div className="flex items-center justify-between text-white">
+      <label htmlFor="darkModeSwitch" className="cursor-pointer">
+        {isDarkMode ? 'Dark Mode' : 'Light Mode'}
+      </label>
+      <input
+        className="form-check-input cursor-pointer"
+        type="checkbox"
+        checked={isDarkMode}
+        onChange={() => setIsDarkMode(!isDarkMode)}
+        id="darkModeSwitch"
       />
+    </div>
 
-      <div
-        className="position-fixed top-0 start-0 p-4"
-        style={{
-          zIndex: 9999,
-          background: '#000000',
-          width: '250px',
-          height: '100vh',
-          borderRadius: '20px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          transition: 'transform 0.3s ease-in-out',
-          transform: 'translateX(0)',
-        }}
-      >
-        <h5 className="text-xl font-bold text-white mb-6">Settings Panel</h5>
+    {/* Click Listener Toggle */}
+    <button
+      onClick={() => setIsClickListenerEnabled(!isClickListenerEnabled)}
+      className={`w-full py-2 px-4 rounded-lg transition-all duration-300 ${
+        isClickListenerEnabled
+          ? 'bg-red-600 hover:bg-red-700'
+          : 'bg-blue-600 hover:bg-blue-700'
+      } text-white`}
+    >
+      {isClickListenerEnabled ? 'Disable Click Listener' : 'Enable Click Listener'}
+    </button>
+  </div>
+</div>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between text-white">
-            <label htmlFor="darkModeSwitch" className="cursor-pointer">
-              {isDarkMode ? 'Dark Mode' : 'Light Mode'}
-            </label>
-            <input
-              className="form-check-input cursor-pointer"
-              type="checkbox"
-              checked={isDarkMode}
-              onChange={() => setIsDarkMode(!isDarkMode)}
-              id="darkModeSwitch"
-            />
-          </div>
+{/* Main Content */}
+<div
+  className="flex-1 p-8 ml-64"
+  style={{
+    transition: 'margin-left 0.3s ease-in-out', // Smooth transition when content shifts
+    marginLeft: '250px', // Initial offset to make room for the settings panel
+  }}
+>
+<div
+  className="rounded-2xl overflow-hidden border border-gray-800 shadow-2xl"
+  style={{
+    height: 'calc(100vh - 8rem)', // Adjust this value to make the map smaller vertically
+    marginTop: '80px', // Shifts the map container down
+  }}
+>
+  {/* Map Container */}
+  <div
+    ref={mapContainerRef}
+    style={{
+      width: '100%',
+      height: '100%',
+    }}
+  />
+</div>
+</div>
 
-          <button
-            onClick={() => setIsClickListenerEnabled(!isClickListenerEnabled)}
-            className={`w-full py-2 px-4 rounded-lg transition-all duration-300 ${
-              isClickListenerEnabled 
-                ? 'bg-red-600 hover:bg-red-700' 
-                : 'bg-blue-600 hover:bg-blue-700'
-            } text-white`}
-          >
-            {isClickListenerEnabled ? 'Disable Click Listener' : 'Enable Click Listener'}
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 p-8 ml-64">
-        <div className="rounded-2xl overflow-hidden border border-gray-800 shadow-2xl"
-             style={{ height: 'calc(100vh - 4rem)' }}>
-          {/* Map Container */}
-          <div
-            ref={mapContainerRef}
-            style={{
-              width: '100%',
-              height: '100%',
-            }}
-          />
-        </div>
-      </div>
     </div>
   );
 };

@@ -271,7 +271,7 @@ const Module1 = () => {
       {/* Sidebar Section (Left) */}
       {map && (
         <div className="flex flex-col gap-4 w-[280px] overflow-auto">
-          <div className="bg-white p-4 rounded-lg shadow h-[100%] overflow-y-auto">
+          <div className="bg-white p-4 rounded-lg shadow h-[98%] overflow-y-auto">
             <button
               onClick={() => setIsGridFixed(!isGridFixed)}
               className={`mb-4 w-full py-2 px-4 rounded ${
@@ -324,7 +324,10 @@ const Module1 = () => {
       )}
   
       {/* Map Section (Center) */}
-      <div className="flex-grow h-full" ref={mapContainerRef} />
+      <div
+  className="flex-grow h-full rounded-lg border border-gray-300"
+  ref={mapContainerRef}
+/>
   
       {/* Right Panel (BuildingManager & RouteManager) */}
       <div className="flex flex-col gap-4 w-[280px] overflow-auto">
