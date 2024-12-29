@@ -18,11 +18,11 @@ function App() {
         <Route path="/features" element={<FeaturesPage />} /> 
         <Route path="/about" element={<AboutPage />} /> 
         <Route path="/contact" element={<ContactPage />} /> 
-        <Route path="/features/Visualization" element={<Visualization />} /> 
+        <Route path="/features/visualization" element={<Visualization />} /> 
         <Route path="/features/module1" element={<Module1 />} />
-        <Route path="/features/Visualization" element={<Visualization />} /> 
-        <Route path="/features/Visualization/pollution" element={<Pollution />} />
-        <Route path="/features/Visualization/traffic" element={<Traffic />} />
+        <Route path="/features/visualization" element={<Visualization />} /> 
+        <Route path="/features/visualization/pollution" element={<Pollution />} />
+        <Route path="/features/visualization/traffic" element={<Traffic />} />
       </Routes>    
     </Router>
   );
