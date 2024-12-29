@@ -6,5 +6,5 @@ body, html {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(to left, #243642, #387478); /* Linear gradient from right to left with teal */
+  background-color: #697565; /* Linear gradient from right to left with teal */
 }
