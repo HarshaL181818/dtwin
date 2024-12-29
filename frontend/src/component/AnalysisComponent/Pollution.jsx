@@ -172,9 +172,22 @@ const Pollution = () => {
       <div
         className="fixed left-0 top-0 h-screen p-6 w-64"
         style={{
-          background: 'linear-gradient(180deg, rgba(13,13,13,0.95) 0%, rgba(0,0,0,0.95) 100%)',
-          borderRight: '1px solid rgba(255,255,255,0.1)',
-          zIndex: 10
+          width: '100%',
+          height: '100vh',
+        }}
+      />
+
+      <div
+        className="position-fixed top-0 start-0 p-4"
+        style={{
+          zIndex: 9999,
+          background: '#000000',
+          width: '250px',
+          height: '100vh',
+          borderRadius: '20px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          transition: 'transform 0.3s ease-in-out',
+          transform: 'translateX(0)',
         }}
       >
         <h5 className="text-xl font-bold text-white mb-6">Settings Panel</h5>
