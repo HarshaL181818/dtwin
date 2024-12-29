@@ -1,10 +1,7 @@
 package com.dtwin.backend.controller;
 
-import com.dtwin.backend.dto.BuildingDTO;
 import com.dtwin.backend.entity.Building;
-import com.dtwin.backend.entity.Sector;
 import com.dtwin.backend.service.BuildingService;
-import com.dtwin.backend.service.SectorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,9 +14,6 @@ import java.util.List;
 public class BuildingController {
     @Autowired
     BuildingService buildingService;
-
-    @Autowired
-    private SectorService sectorService;
 
     @GetMapping
     public List<Building> getAllBuildings() {
@@ -62,25 +56,4 @@ public class BuildingController {
         }
     }
 
-    @PostMapping("/building-impact")
-    public ResponseEntity<?> calculateBuildingImpact(@RequestBody BuildingDTO building) {
-        try {
-            List<Sector> currentSectors = sectorService.findAll();
-            List<Sector> updatedSectors = sectorService.updateSectorWithBuildingImpact(building, currentSectors);
-            return ResponseEntity.ok(updatedSectors);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error calculating building impact: " + e.getMessage());
-        }
-    }
-
-    @PostMapping("/buildings-impact")
-    public ResponseEntity<?> calculateMultipleBuildingsImpact(@RequestBody List<BuildingDTO> buildings) {
-        try {
-            List<Sector> currentSectors = sectorService.findAll();
-            List<Sector> updatedSectors = sectorService.updateSectorsWithMultipleBuildings(buildings, currentSectors);
-            return ResponseEntity.ok(updatedSectors);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error calculating multiple buildings impact: " + e.getMessage());
-        }
-    }
 }

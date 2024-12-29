@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import '../../assets/styles/editorpage.css'
 
 const BuildingManager = ({ map, clickedLocation }) => {
   const [buildingWidth, setBuildingWidth] = useState(30);
@@ -28,16 +27,20 @@ const BuildingManager = ({ map, clickedLocation }) => {
     "Healthcare Facility",
   ];
 
+  // Load buildings on component mount
   useEffect(() => {
     loadBuildings();
   }, []);
 
+  // Update building visualization when buildings change
   useEffect(() => {
     if (map) {
-      buildings.forEach(displayBuilding);
+      // Ensure the map style is fully loaded
+      map.on('style.load', () => {
+        buildings.forEach(displayBuilding); // Once style is loaded, display buildings
+      });
     }
   }, [buildings, map]);
-
   const loadBuildings = async () => {
     try {
       const response = await axios.get(API_BASE_URL);
@@ -48,53 +51,51 @@ const BuildingManager = ({ map, clickedLocation }) => {
   };
 
   const displayBuilding = (building) => {
-    if (!map || !building.coordinates || !building.coordinates[0]) return;
-
+    if (!map) return;
+  
     const buildingId = `building-${building.id}`;
     const labelId = `${buildingId}-label`;
-
+    
     // Remove existing layers and sources
     [buildingId, labelId].forEach(id => {
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
     });
-
+  
     // Add building extrusion
     map.addSource(buildingId, {
       type: 'geojson',
       data: {
         type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: building.coordinates
-        },
         properties: {
           height: building.height,
           base: 0
+        },
+        geometry: {
+          type: 'Polygon',
+          coordinates: building.coordinates
         }
       }
     });
-
+  
     map.addLayer({
       id: buildingId,
       type: 'fill-extrusion',
       source: buildingId,
       paint: {
         'fill-extrusion-color': building.color,
-        'fill-extrusion-height': ['get', 'height'],
-        'fill-extrusion-base': ['get', 'base'],
+        'fill-extrusion-height': building.height,
+        'fill-extrusion-base': 0,
         'fill-extrusion-opacity': 0.8
       }
     });
 
-    // Calculate center point for label
-    const coords = building.coordinates[0];
-    const center = coords.reduce((acc, curr) => [
+    // Add label
+    const center = building.coordinates[0].reduce((acc, curr) => [
       acc[0] + curr[0],
       acc[1] + curr[1]
-    ], [0, 0]).map(coord => coord / coords.length);
+    ], [0, 0]).map(coord => coord / building.coordinates[0].length);
 
-    // Add label
     map.addSource(labelId, {
       type: 'geojson',
       data: {
@@ -132,62 +133,51 @@ const BuildingManager = ({ map, clickedLocation }) => {
       alert('Please select a location and building type');
       return;
     }
-  
-    const size = buildingWidth / 111111; // Convert meters to degrees
+
+    const size = buildingWidth / 111111;
     const coordinates = getRotatedCoordinates(clickedLocation, size, buildingRotation);
-  
+
     const newBuilding = {
       location: clickedLocation,
-      coordinates: [coordinates],
+      coordinates,
       width: buildingWidth,
       height: buildingHeight,
       color: buildingColor,
       rotation: buildingRotation,
       type: buildingType,
     };
-  
+
     try {
       const response = await axios.post(API_BASE_URL, newBuilding);
-      const addedBuilding = response.data;
-  
-      setBuildings(prev => [...prev, addedBuilding]);
-      displayBuilding(addedBuilding);
-  
-      // Call the AQI update function
-      updateAQIForBuilding(addedBuilding);
-  
+      setBuildings(prev => [...prev, response.data]);
       setBuildingType('');
+      displayBuilding(response.data);
     } catch (error) {
       console.error('Failed to add building:', error);
       alert('Failed to add building. Please try again.');
     }
   };
-  
+
   const handleDeleteBuilding = async (buildingId) => {
     try {
       await axios.delete(`${API_BASE_URL}/${buildingId}`);
-  
-      // Remove from map
+      
+      // Remove building from map
       const buildingLayerId = `building-${buildingId}`;
       const labelLayerId = `${buildingLayerId}-label`;
-  
+      
       [buildingLayerId, labelLayerId].forEach(id => {
         if (map.getLayer(id)) map.removeLayer(id);
         if (map.getSource(id)) map.removeSource(id);
       });
-  
-      const updatedBuildings = buildings.filter(b => b.id !== buildingId);
-      setBuildings(updatedBuildings);
-  
-      // Recalculate AQI
-      updateAQIForAllBuildings(updatedBuildings);
+      
+      setBuildings(prev => prev.filter(b => b.id !== buildingId));
+      setSelectedBuilding(null);
     } catch (error) {
       console.error('Failed to delete building:', error);
       alert('Failed to delete building. Please try again.');
     }
   };
-  
-  
 
   const handleUpdateBuilding = async () => {
     if (!selectedBuilding) return;
@@ -206,7 +196,7 @@ const BuildingManager = ({ map, clickedLocation }) => {
       color: buildingColor,
       rotation: buildingRotation,
       type: buildingType,
-      coordinates: [coordinates],
+      coordinates,
     };
 
     try {
@@ -240,7 +230,7 @@ const BuildingManager = ({ map, clickedLocation }) => {
         acc[0] + curr[0],
         acc[1] + curr[1]
       ], [0, 0]).map(coord => coord / building.coordinates[0].length);
-
+      
       map.flyTo({
         center: center,
         zoom: 17,
@@ -256,22 +246,20 @@ const BuildingManager = ({ map, clickedLocation }) => {
       [size / 2, -size / 2],
       [size / 2, size / 2],
       [-size / 2, size / 2],
-      [-size / 2, -size / 2], // Close the polygon
     ];
 
-    return points.map(([x, y]) => [
-      center[0] + x * Math.cos(rad) - y * Math.sin(rad),
-      center[1] + x * Math.sin(rad) + y * Math.cos(rad),
-    ]);
+    return [
+      points.map(([x, y]) => [
+        center[0] + x * Math.cos(rad) - y * Math.sin(rad),
+        center[1] + x * Math.sin(rad) + y * Math.cos(rad),
+      ]),
+    ];
   };
 
   return (
-    <div
-      className="p-5 bg-gray-50 w-[280px] overflow-auto rounded-lg border border-gray-800"
-      style={{ height: '50%' }}
-    > 
+    <div className="p-5 bg-gray-50">
       <h3 className="text-lg font-semibold mb-4">Building Controls</h3>
-
+      
       <div className="space-y-4">
         <div>
           <label className="block mb-2">Building Type:</label>
@@ -293,7 +281,9 @@ const BuildingManager = ({ map, clickedLocation }) => {
             type="number"
             className="w-full p-2 border rounded"
             value={buildingWidth}
-            onChange={(e) => setBuildingWidth(e.target.value)}
+            onChange={(e) => setBuildingWidth(Number(e.target.value))}
+            min="1"
+            max="100"
           />
         </div>
 
@@ -303,7 +293,21 @@ const BuildingManager = ({ map, clickedLocation }) => {
             type="number"
             className="w-full p-2 border rounded"
             value={buildingHeight}
-            onChange={(e) => setBuildingHeight(e.target.value)}
+            onChange={(e) => setBuildingHeight(Number(e.target.value))}
+            min="1"
+            max="100"
+          />
+        </div>
+
+        <div>
+          <label className="block mb-2">Rotation (degrees):</label>
+          <input
+            type="number"
+            className="w-full p-2 border rounded"
+            value={buildingRotation}
+            onChange={(e) => setBuildingRotation(Number(e.target.value))}
+            min="0"
+            max="360"
           />
         </div>
 
@@ -317,22 +321,12 @@ const BuildingManager = ({ map, clickedLocation }) => {
           />
         </div>
 
-        <div>
-          <label className="block mb-2">Rotation (degrees):</label>
-          <input
-            type="number"
-            className="w-full p-2 border rounded"
-            value={buildingRotation}
-            onChange={(e) => setBuildingRotation(e.target.value)}
-          />
-        </div>
-
         <button
-          className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full p-2 bg-blue-500 text-white rounded disabled:opacity-50"
           onClick={handleAddBuilding}
           disabled={!clickedLocation || !buildingType}
         >
-          {!clickedLocation ? 'Click on map first' : !buildingType ? 'Select building type' : 'Add Building'}
+          Add Building
         </button>
       </div>
 
@@ -341,13 +335,13 @@ const BuildingManager = ({ map, clickedLocation }) => {
           <h4 className="text-lg font-semibold mb-2">Selected Building #{selectedBuilding.id}</h4>
           <div className="space-y-2">
             <button
-              className="w-full p-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+              className="w-full p-2 bg-green-500 text-white rounded"
               onClick={handleUpdateBuilding}
             >
               Update Building
             </button>
             <button
-              className="w-full p-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+              className="w-full p-2 bg-red-500 text-white rounded"
               onClick={() => handleDeleteBuilding(selectedBuilding.id)}
             >
               Delete Building
@@ -356,13 +350,13 @@ const BuildingManager = ({ map, clickedLocation }) => {
         </div>
       )}
 
-<div className="mt-6">
-  <h3 className="text-lg font-semibold mb-4">Buildings List</h3>
-  <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold mb-4">Buildings List</h3>
+        <div className="space-y-2">
           {buildings.map((building) => (
             <div
               key={building.id}
-              className={`p-3 border rounded cursor-pointer hover:bg-gray-50 transition-colors ${
+              className={`p-3 border rounded cursor-pointer ${
                 building.id === selectedBuilding?.id ? 'bg-gray-100 border-blue-500' : 'bg-white'
               }`}
               onClick={() => handleSelectBuilding(building)}
@@ -388,4 +382,4 @@ const BuildingManager = ({ map, clickedLocation }) => {
   );
 };
 
-export default BuildingManager
+export default BuildingManager;
