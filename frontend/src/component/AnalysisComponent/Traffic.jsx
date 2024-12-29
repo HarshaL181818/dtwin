@@ -19,25 +19,26 @@ const MapVisualization = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [geminiResponse, setGeminiResponse] = useState('');
+  const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
+    if (!mapContainerRef.current) return;
+
     const mapInstance = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/dark-v11', // Force dark theme
+      style: darkMode ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
       center: [77.209, 28.6139],
       zoom: 14,
       pitch: 60,
       bearing: -17.6,
     });
 
-    // Add traffic layer
     mapInstance.on('load', () => {
       mapInstance.addSource('traffic', {
         'type': 'vector',
         'url': 'mapbox://mapbox.mapbox-traffic-v1'
       });
 
-      // Add traffic layer
       mapInstance.addLayer({
         'id': 'traffic-layer',
         'type': 'line',
@@ -57,7 +58,6 @@ const MapVisualization = () => {
         }
       });
 
-      // Add 3D buildings with darker color
       mapInstance.addLayer({
         id: '3d-buildings',
         source: 'composite',
@@ -89,7 +89,7 @@ const MapVisualization = () => {
     setMap(mapInstance);
 
     return () => mapInstance.remove();
-  }, []);
+  }, [darkMode]);
 
   const handleRoute = async (e) => {
     if (e.route?.length) {
@@ -230,53 +230,88 @@ Keep it brief and clear.`;
   };
 
   return (
-    <div style={{ position: 'relative', height: '100vh', background: '#000' }}>
-      <div
-        ref={mapContainerRef}
-        style={{ width: '100%', height: '100vh', position: 'absolute', top: 0, left: 0 }}
-      />
-      <div
-        className="position-fixed top-0 end-0 p-4"
-        style={{
-          zIndex: 9999,
-          background: 'rgba(0, 0, 0, 0.9)',
-          width: '250px',
-          height: '100vh',
-          borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
-          color: '#fff'
-        }}
-      >
-        <h5 className="text-white mb-4">Traffic Simulation</h5>
-        <button 
-          onClick={startSimulation} 
-          className="btn btn-success w-100 mb-3"
-        >
-          Start Simulation
-        </button>
-
-        {loading && (
-          <div className="d-flex align-items-center justify-content-center text-white">
+    <div className="container-fluid py-4" style={{ background: '#000' }}>
+      <div className="row">
+        <div className="col position-relative" style={{ height: 'calc(100vh - 2rem)' }}>
+          <div 
+            style={{ 
+              position: 'relative',
+              height: '100%',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              overflow: 'hidden'
+            }}
+          >
             <div
-              className="spinner-border text-light"
-              role="status"
-              style={{ width: '1.5rem', height: '1.5rem', marginRight: '10px' }}
+              ref={mapContainerRef}
+              style={{ 
+                width: '100%',
+                height: '100%'
+              }}
             />
-            <span>Analyzing traffic...</span>
           </div>
-        )}
 
-        {error && (
-          <div className="text-danger mt-3">
-            {error}
-          </div>
-        )}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: '300px',
+              height: '100%',
+              background: 'rgba(0, 0, 0, 0.9)',
+              borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+              padding: '1.5rem',
+              overflowY: 'auto',
+              borderTopRightRadius: '12px',
+              borderBottomRightRadius: '12px'
+            }}
+          >
+            <h5 className="text-white mb-4">Traffic Simulation</h5>
+            
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <span className="text-white">Dark Mode</span>
+              <div className="form-check form-switch">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  checked={darkMode}
+                  onChange={(e) => setDarkMode(e.target.checked)}
+                />
+              </div>
+            </div>
 
-        {geminiResponse && (
-          <div className="mt-3">
-            <h6 className="text-white">Traffic Insights:</h6>
-            <p className="text-white-50 small">{geminiResponse}</p>
+            <button 
+              onClick={startSimulation} 
+              className="btn btn-success w-100 mb-3"
+            >
+              Start Simulation
+            </button>
+
+            {loading && (
+              <div className="d-flex align-items-center justify-content-center text-white">
+                <div
+                  className="spinner-border text-light"
+                  role="status"
+                  style={{ width: '1.5rem', height: '1.5rem', marginRight: '10px' }}
+                />
+                <span>Analyzing traffic...</span>
+              </div>
+            )}
+
+            {error && (
+              <div className="alert alert-danger mt-3">
+                {error}
+              </div>
+            )}
+
+            {geminiResponse && (
+              <div className="mt-4">
+                <h6 className="text-white">Traffic Insights:</h6>
+                <p className="text-white-50 small">{geminiResponse}</p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
