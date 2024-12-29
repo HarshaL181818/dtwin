@@ -1,7 +1,10 @@
 package com.dtwin.backend.controller;
 
+import com.dtwin.backend.dto.BuildingDTO;
 import com.dtwin.backend.entity.Building;
+import com.dtwin.backend.entity.Sector;
 import com.dtwin.backend.service.BuildingService;
+import com.dtwin.backend.service.SectorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,11 +12,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/buildings")
-public class EditorController {
+public class BuildingController {
     @Autowired
     BuildingService buildingService;
+
+    @Autowired
+    private SectorService sectorService;
 
     @GetMapping
     public List<Building> getAllBuildings() {
@@ -53,6 +59,28 @@ public class EditorController {
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping("/building-impact")
+    public ResponseEntity<?> calculateBuildingImpact(@RequestBody BuildingDTO building) {
+        try {
+            List<Sector> currentSectors = sectorService.findAll();
+            List<Sector> updatedSectors = sectorService.updateSectorWithBuildingImpact(building, currentSectors);
+            return ResponseEntity.ok(updatedSectors);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error calculating building impact: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/buildings-impact")
+    public ResponseEntity<?> calculateMultipleBuildingsImpact(@RequestBody List<BuildingDTO> buildings) {
+        try {
+            List<Sector> currentSectors = sectorService.findAll();
+            List<Sector> updatedSectors = sectorService.updateSectorsWithMultipleBuildings(buildings, currentSectors);
+            return ResponseEntity.ok(updatedSectors);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error calculating multiple buildings impact: " + e.getMessage());
         }
     }
 }
