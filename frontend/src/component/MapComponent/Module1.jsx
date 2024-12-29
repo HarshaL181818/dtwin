@@ -15,7 +15,7 @@ const Module1 = () => {
     display: 'flex',
     height: '100vh',
     gap: '20px',
-    padding: '20px',
+    padding: '10px',
   };
 
   const mapStyle = {

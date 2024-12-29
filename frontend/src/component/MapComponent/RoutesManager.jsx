@@ -129,8 +129,10 @@ const RouteManager = ({ map }) => {
           type: 'line',
           source: sourceId,
           layout: {
-            'line-join': 'round',
-            'line-cap': 'round',
+            'text-field': 'name', // Display the name property
+          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+          'text-size': 12,
+          'text-anchor': 'top',
           },
           paint: {
             'line-color': roadStyle.color,
@@ -209,9 +211,7 @@ const RouteManager = ({ map }) => {
     width: '300px',
     backgroundColor: '#f8f9fa',
     padding: '20px',
-    borderRadius: '8px',
-    overflowY: 'auto',
-    marginRight: '20px',
+    overflowY: 'auto'
   };
 
   const inputStyle = {
