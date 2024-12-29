@@ -5,6 +5,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import RouteManager from './RoutesManager';
 import BuildingManager from './BuildingManager';
 import { getAQIColor } from '../../utils/aqiUtils';
+import Navbar from '../Navbar/Navbar';
 
 mapboxgl.accessToken = import.meta.env.VITE_REACT_APP_MAPBOX_TOKEN;
 
@@ -264,19 +265,24 @@ const Module1 = () => {
   };
 
   return (
-    <div className="flex h-screen gap-5 p-2.5">
-      <div className="flex-grow h-full" ref={mapContainerRef} />
+    <div>
+    <Navbar />
+    <div className="flex h-[calc(100vh-64px)] mt-20 gap-5 p-2.5">
+      {/* Sidebar Section (Left) */}
       {map && (
-        <div className="flex flex-col gap-4 w-72 overflow-auto">
-          <div className="bg-white p-4 rounded-lg shadow">
+        <div className="flex flex-col gap-4 w-[280px] overflow-auto">
+          <div className="bg-white p-4 rounded-lg shadow h-[100%] overflow-y-auto">
             <button
               onClick={() => setIsGridFixed(!isGridFixed)}
-              className={`mb-4 w-full py-2 px-4 rounded ${isGridFixed ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
-                } text-white`}
+              className={`mb-4 w-full py-2 px-4 rounded ${
+                isGridFixed
+                  ? 'bg-red-500 hover:bg-red-600'
+                  : 'bg-blue-500 hover:bg-blue-600'
+              } text-white`}
             >
               {isGridFixed ? 'Unfix Grid' : 'Fix Grid'}
             </button>
-
+  
             {gridData && (
               <button
                 onClick={handlePostData}
@@ -285,21 +291,27 @@ const Module1 = () => {
                 Post Grid Data
               </button>
             )}
-
+  
             {loading && <p>Loading AQI data...</p>}
-
+  
             {aqiData.length > 0 && (
               <div className="mt-4">
                 <h3 className="font-bold mb-2">Sector Data:</h3>
-                <div className="max-h-96 overflow-y-auto">
+                <div>
                   {aqiData.map((data) => (
-                    <div key={data.sectorId} className="mb-2 p-2 bg-gray-100 rounded">
+                    <div
+                      key={data.sectorId}
+                      className="mb-2 p-2 bg-gray-100 rounded"
+                    >
                       <p className="font-semibold">Sector {data.sectorId}</p>
                       <p>Original AQI: {data.originalAQI || 'N/A'}</p>
                       <p>Current AQI: {data.aqi || 'N/A'}</p>
                       {data.impactedBy?.length > 0 && (
-                        <p>Building Impacts: {data.impactedBy.map(b =>
-                          `#${b.buildingId}(${b.impact})`).join(', ')}
+                        <p>
+                          Building Impacts:{' '}
+                          {data.impactedBy
+                            .map((b) => `#${b.buildingId}(${b.impact})`)
+                            .join(', ')}
                         </p>
                       )}
                     </div>
@@ -308,17 +320,22 @@ const Module1 = () => {
               </div>
             )}
           </div>
-
-          <BuildingManager
-            map={map}
-            clickedLocation={clickedLocation}
-          />
-          <RouteManager />
-
         </div>
       )}
+  
+      {/* Map Section (Center) */}
+      <div className="flex-grow h-full" ref={mapContainerRef} />
+  
+      {/* Right Panel (BuildingManager & RouteManager) */}
+      <div className="flex flex-col gap-4 w-[280px] overflow-auto">
+        <BuildingManager map={map} clickedLocation={clickedLocation} />
+        <RouteManager />
+      </div>
+    </div>
     </div>
   );
-};
-
-export default Module1;
+  
+  };
+  
+  export default Module1;
+  

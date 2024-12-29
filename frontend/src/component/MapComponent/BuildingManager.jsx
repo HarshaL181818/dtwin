@@ -267,9 +267,9 @@ const BuildingManager = ({ map, clickedLocation }) => {
 
   return (
     <div
-      className="p-5 bg-gray-50 w-70 overflow-auto"
-      style={{ height: '50vh' }}
-    >
+      className="p-5 bg-gray-50 w-[280px] overflow-auto"
+      style={{ height: '50%' }}
+    > 
       <h3 className="text-lg font-semibold mb-4">Building Controls</h3>
 
       <div className="space-y-4">
