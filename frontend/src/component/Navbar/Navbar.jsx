@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import '../../assets/styles/navbar.css'
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -20,13 +21,12 @@ const Navbar = () => {
     <nav className="bg-transparent custom-navbar py-2 flex items-center justify-between px-10">
       {/* Left side: EcoTwin Text */}
       <div
-        className="text-white text-2xl font-bold tracking-wide cursor-pointer hover:scale-105 transform transition-all duration-300"
+        className="text-white text-2xl font-bold tracking-wide cursor-pointer hover:scale-105 transform transition-all duration-300 navbar-name mb-3"
         onClick={() => handleSectionClick("home")}
       >
         EcoTwin
       </div>
 
-      {/* Right side: Navigation Links */}
       <ul className="flex justify-end space-x-10">
         {["home", "features", "about", "contact"].map((section) => (
           <li key={section}>

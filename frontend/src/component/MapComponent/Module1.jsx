@@ -12,7 +12,6 @@ const Module1 = () => {
   const [map, setMap] = useState(null);
   const [clickedLocation, setClickedLocation] = useState(null);
   
-  // Add ref for the click marker
   const clickMarkerRef = useRef(null);
 
   useEffect(() => {
@@ -58,7 +57,6 @@ const Module1 = () => {
         },
       });
 
-      // Add a source and layer for the click marker
       mapInstance.addSource('click-point', {
         type: 'geojson',
         data: {
@@ -86,7 +84,6 @@ const Module1 = () => {
       console.log('Clicked Coordinates:', coordinates);
       setClickedLocation(coordinates);
 
-      // Update the click marker position
       mapInstance.getSource('click-point').setData({
         type: 'FeatureCollection',
         features: [{
@@ -108,9 +105,17 @@ const Module1 = () => {
     <div style={{ display: 'flex', height: '100vh', gap: '20px', padding: '10px' }}>
       <div style={{ flexGrow: 1, height: '100%' }} ref={mapContainerRef} />
       {map && (
-        <div className="flex flex-col gap-4 overflow-auto">
-          <RouteManager map={map} />
-          <BuildingManager map={map} clickedLocation={clickedLocation} />
+        <div 
+          className="flex flex-col gap-4 overflow-auto" 
+          style={{ width: '300px', height: '100%', display: 'flex', flexDirection: 'column' }}
+        >
+          {/* RouteManager and BuildingManager will now take 50% height each */}
+          <div style={{ flex: 1 }}>
+            <RouteManager map={map} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <BuildingManager map={map} clickedLocation={clickedLocation} />
+          </div>
         </div>
       )}
     </div>

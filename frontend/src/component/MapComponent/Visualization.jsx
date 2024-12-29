@@ -4,7 +4,7 @@ import Navbar from '../Navbar/Navbar';
 
 const Visualization = () => {
   return (
-    <div className="min-h-screen bg-black text-white mt-5">
+    <div className="min-h-screen text-white mt-5">
       <Navbar />
       <div className="container mx-auto px-4 py-16">
         <h2 className="text-4xl font-bold text-center mb-16">City Visualization</h2>
@@ -14,10 +14,15 @@ const Visualization = () => {
             {/* Pollution Card */}
             <Link 
               to="/features/Visualization/pollution"
-              className="group relative transform transition-all duration-500 hover:-translate-y-2"
+              className="group relative transform transition-all duration-500 hover:-translate-y-2 no-underline"
             >
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl opacity-50 blur-lg group-hover:opacity-75 transition duration-500"></div>
-              <div className="relative bg-gray-900 rounded-xl overflow-hidden border border-gray-800 h-full">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-[#000B58] to-[#003D73] rounded-2xl opacity-50 blur-lg group-hover:opacity-75 transition duration-500"></div>
+              <div
+                className="relative bg-[#FFF487] rounded-xl overflow-hidden border border-gray-800 h-full"
+                style={{
+                  background: 'radial-gradient(ellipse at bottom right, #629584, #E2F1E7)',
+                }}
+              >
                 {/* Image Container */}
                 <div className="h-48 overflow-hidden">
                   <img 
@@ -29,8 +34,8 @@ const Visualization = () => {
                 {/* Content Container */}
                 <div className="p-6">
                   <div className="flex flex-col items-center text-center space-y-4">
-                    <h3 className="text-2xl font-bold">Pollution Analysis</h3>
-                    <p className="text-gray-400">Monitor and analyze urban pollution levels with advanced visualization tools.</p>
+                    <h3 className="text-2xl font-bold text-black">Pollution Analysis</h3>
+                    <p className="text-black">Monitor and analyze urban pollution levels with advanced visualization tools.</p>
                   </div>
                 </div>
               </div>
@@ -39,10 +44,15 @@ const Visualization = () => {
             {/* Traffic Card */}
             <Link 
               to="/features/Visualization/traffic"
-              className="group relative transform transition-all duration-500 hover:-translate-y-2"
+              className="group relative transform transition-all duration-500 hover:-translate-y-2 no-underline"
             >
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-2xl opacity-50 blur-lg group-hover:opacity-75 transition duration-500"></div>
-              <div className="relative bg-gray-900 rounded-xl overflow-hidden border border-gray-800 h-full">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-[#000B58] to-[#003D73] rounded-2xl opacity-50 blur-lg group-hover:opacity-75 transition duration-500"></div>
+              <div
+                className="relative bg-[#FFF487] rounded-xl overflow-hidden border border-gray-800 h-full"
+                style={{
+                  background: 'radial-gradient(ellipse at bottom right, #629584, #E2F1E7)',
+                }}
+              >
                 {/* Image Container */}
                 <div className="h-48 overflow-hidden">
                   <img 
@@ -54,8 +64,8 @@ const Visualization = () => {
                 {/* Content Container */}
                 <div className="p-6">
                   <div className="flex flex-col items-center text-center space-y-4">
-                    <h3 className="text-2xl font-bold">Traffic Monitoring</h3>
-                    <p className="text-gray-400">Track and optimize traffic flow patterns across urban areas.</p>
+                    <h3 className="text-2xl font-bold text-black">Traffic Monitoring</h3>
+                    <p className="text-black">Track and optimize traffic flow patterns across urban areas.</p>
                   </div>
                 </div>
               </div>

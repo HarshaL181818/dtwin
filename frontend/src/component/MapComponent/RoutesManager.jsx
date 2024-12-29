@@ -129,10 +129,10 @@ const RouteManager = ({ map }) => {
           type: 'line',
           source: sourceId,
           layout: {
-            'text-field': 'name', // Display the name property
-          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-          'text-size': 12,
-          'text-anchor': 'top',
+            'text-field': 'name',
+            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+            'text-size': 12,
+            'text-anchor': 'top',
           },
           paint: {
             'line-color': roadStyle.color,
@@ -207,57 +207,22 @@ const RouteManager = ({ map }) => {
     }
   };
 
-  const containerStyle = {
-    width: '300px',
-    backgroundColor: '#f8f9fa',
-    padding: '20px',
-    overflowY: 'auto'
-  };
-
-  const inputStyle = {
-    width: '100%',
-    padding: '8px',
-    marginBottom: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-  };
-
-  const buttonStyle = {
-    width: '100%',
-    padding: '8px',
-    marginBottom: '10px',
-    backgroundColor: isDrawing ? '#dc3545' : '#28a745',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  };
-
-  const routeItemStyle = {
-    padding: '10px',
-    border: '1px solid #ddd',
-    marginBottom: '5px',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    backgroundColor: 'white',
-  };
-
   return (
-    <div style={containerStyle}>
-      <h3>Route Controls</h3>
+    <div className="w-[300px] bg-gray-100 p-4 space-y-4 overflow-y-auto scrollbar-custom">
+      <h3 className="text-lg font-semibold">Route Controls</h3>
       <div>
         <input
           type="text"
           value={routeName}
           onChange={(e) => setRouteName(e.target.value)}
           placeholder="Route name"
-          style={inputStyle}
+          className="w-full p-2 mb-2 border border-gray-300 rounded"
         />
 
         <select
           value={routeType}
           onChange={(e) => setRouteType(e.target.value)}
-          style={inputStyle}
+          className="w-full p-2 mb-2 border border-gray-300 rounded"
         >
           {roadTypes.map((type) => (
             <option key={type.value} value={type.value}>
@@ -273,7 +238,7 @@ const RouteManager = ({ map }) => {
               setClickedPoints([]);
             }
           }}
-          style={buttonStyle}
+          className={`w-full p-2 mb-2 rounded text-white ${isDrawing ? 'bg-red-500' : 'bg-green-500'}`}
         >
           {isDrawing ? 'Cancel Drawing' : 'Start Drawing'}
         </button>
@@ -281,36 +246,27 @@ const RouteManager = ({ map }) => {
         {isDrawing && clickedPoints.length >= 2 && (
           <button
             onClick={handleSaveRoute}
-            style={{
-              ...buttonStyle,
-              backgroundColor: '#007bff',
-              marginBottom: '10px',
-            }}
+            className="w-full p-2 mb-2 bg-blue-500 text-white rounded"
           >
             Save Route
           </button>
         )}
       </div>
 
-      <h3>Routes List</h3>
-      <div>
+      <h3 className="text-lg font-semibold">Routes List</h3>
+      <div className="space-y-2">
         {routes.map((route) => (
           <div
             key={route.id}
-            style={routeItemStyle}
-            onClick={() => console.log('Route selected:', route.id)}
+            className="p-3 border border-gray-300 rounded cursor-pointer hover:bg-gray-50"
           >
             <strong>{route.name}</strong>
-            <div style={{ fontSize: '0.9em', color: '#666' }}>
+            <div className="text-sm text-gray-600">
               {roadTypes.find((type) => type.value === route.type)?.label || 'Major Road'}
             </div>
             <button
               onClick={() => handleDeleteRoute(route.id)}
-              style={{
-                ...buttonStyle,
-                backgroundColor: '#dc3545',
-                marginTop: '5px',
-              }}
+              className="w-full p-2 mt-2 bg-red-500 text-white rounded"
             >
               Delete Route
             </button>

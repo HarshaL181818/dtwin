@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import '../../assets/styles/editorpage.css'
 
 const BuildingManager = ({ map, clickedLocation }) => {
   const [buildingWidth, setBuildingWidth] = useState(30);
@@ -256,7 +257,10 @@ const BuildingManager = ({ map, clickedLocation }) => {
   };
 
   return (
-    <div className="p-5 bg-gray-50 w-80 overflow-auto max-h-screen">
+    <div
+      className="p-5 bg-gray-50 w-70 overflow-auto"
+      style={{ height: '50vh' }}
+    >
       <h3 className="text-lg font-semibold mb-4">Building Controls</h3>
 
       <div className="space-y-4">
@@ -280,9 +284,7 @@ const BuildingManager = ({ map, clickedLocation }) => {
             type="number"
             className="w-full p-2 border rounded"
             value={buildingWidth}
-            onChange={(e) => setBuildingWidth(Number(e.target.value))}
-            min="1"
-            max="100"
+            onChange={(e) => setBuildingWidth(e.target.value)}
           />
         </div>
 
@@ -292,9 +294,17 @@ const BuildingManager = ({ map, clickedLocation }) => {
             type="number"
             className="w-full p-2 border rounded"
             value={buildingHeight}
-            onChange={(e) => setBuildingHeight(Number(e.target.value))}
-            min="1"
-            max="100"
+            onChange={(e) => setBuildingHeight(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="block mb-2">Color:</label>
+          <input
+            type="color"
+            className="w-full p-2 border rounded"
+            value={buildingColor}
+            onChange={(e) => setBuildingColor(e.target.value)}
           />
         </div>
 
@@ -304,19 +314,7 @@ const BuildingManager = ({ map, clickedLocation }) => {
             type="number"
             className="w-full p-2 border rounded"
             value={buildingRotation}
-            onChange={(e) => setBuildingRotation(Number(e.target.value))}
-            min="0"
-            max="360"
-          />
-        </div>
-
-        <div>
-          <label className="block mb-2">Color:</label>
-          <input
-            type="color"
-            className="w-full p-2 border rounded h-12"
-            value={buildingColor}
-            onChange={(e) => setBuildingColor(e.target.value)}
+            onChange={(e) => setBuildingRotation(e.target.value)}
           />
         </div>
 
@@ -349,14 +347,15 @@ const BuildingManager = ({ map, clickedLocation }) => {
         </div>
       )}
 
-      <div className="mt-6">
-        <h3 className="text-lg font-semibold mb-4">Buildings List</h3>
-        <div className="space-y-2">
+<div className="mt-6">
+  <h3 className="text-lg font-semibold mb-4">Buildings List</h3>
+  <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
           {buildings.map((building) => (
             <div
               key={building.id}
-              className={`p-3 border rounded cursor-pointer hover:bg-gray-50 transition-colors ${building.id === selectedBuilding?.id ? 'bg-gray-100 border-blue-500' : 'bg-white'
-                }`}
+              className={`p-3 border rounded cursor-pointer hover:bg-gray-50 transition-colors ${
+                building.id === selectedBuilding?.id ? 'bg-gray-100 border-blue-500' : 'bg-white'
+              }`}
               onClick={() => handleSelectBuilding(building)}
             >
               <div className="flex justify-between items-center">
@@ -380,4 +379,4 @@ const BuildingManager = ({ map, clickedLocation }) => {
   );
 };
 
-export default BuildingManager;
+export default BuildingManager

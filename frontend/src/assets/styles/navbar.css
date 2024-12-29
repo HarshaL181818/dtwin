@@ -1,11 +1,12 @@
 /* navbar.css */
-.custom-navbar {
+nav {
     position: fixed;
     top: 0;
     width: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: #000b58;
     backdrop-filter: blur(10px);
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     z-index: 10;
+    margin-top: 20px;
   }
 

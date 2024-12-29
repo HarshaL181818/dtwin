@@ -1,10 +1,10 @@
-  /* App.css */
-  body, html {
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background-color: black;
-  }
+/* App.css */
+body, html {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(to left, #243642, #387478); /* Linear gradient from right to left with teal */
+}
