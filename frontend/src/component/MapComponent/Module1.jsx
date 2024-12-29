@@ -6,6 +6,7 @@ import RouteManager from './RoutesManager';
 import BuildingManager from './BuildingManager';
 import { getAQIColor } from '../../utils/aqiUtils';
 import Navbar from '../Navbar/Navbar';
+import '../../assets/styles/editorpage.css'
 
 mapboxgl.accessToken = import.meta.env.VITE_REACT_APP_MAPBOX_TOKEN;
 
@@ -265,77 +266,78 @@ const Module1 = () => {
   };
 
   return (
-    <div>
-    <Navbar />
-    <div className="flex h-[calc(100vh-64px)] mt-20 gap-5 p-2.5">
-      {/* Sidebar Section (Left) */}
-      {map && (
-        <div className="flex flex-col gap-4 w-[280px] overflow-auto">
-          <div className="bg-white p-4 rounded-lg shadow h-[98%] overflow-y-auto">
-            <button
-              onClick={() => setIsGridFixed(!isGridFixed)}
-              className={`mb-4 w-full py-2 px-4 rounded ${
-                isGridFixed
-                  ? 'bg-red-500 hover:bg-red-600'
-                  : 'bg-blue-500 hover:bg-blue-600'
-              } text-white`}
-            >
-              {isGridFixed ? 'Unfix Grid' : 'Fix Grid'}
-            </button>
-  
-            {gridData && (
-              <button
-                onClick={handlePostData}
-                className="w-full py-2 px-4 rounded bg-green-500 hover:bg-green-600 text-white mb-4"
-              >
-                Post Grid Data
-              </button>
-            )}
-  
-            {loading && <p>Loading AQI data...</p>}
-  
-            {aqiData.length > 0 && (
-              <div className="mt-4">
-                <h3 className="font-bold mb-2">Sector Data:</h3>
-                <div>
-                  {aqiData.map((data) => (
-                    <div
-                      key={data.sectorId}
-                      className="mb-2 p-2 bg-gray-100 rounded"
-                    >
-                      <p className="font-semibold">Sector {data.sectorId}</p>
-                      <p>Original AQI: {data.originalAQI || 'N/A'}</p>
-                      <p>Current AQI: {data.aqi || 'N/A'}</p>
-                      {data.impactedBy?.length > 0 && (
-                        <p>
-                          Building Impacts:{' '}
-                          {data.impactedBy
-                            .map((b) => `#${b.buildingId}(${b.impact})`)
-                            .join(', ')}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-  
-      {/* Map Section (Center) */}
-      <div
-  className="flex-grow h-full rounded-lg border border-gray-300"
-  ref={mapContainerRef}
-/>
-  
-      {/* Right Panel (BuildingManager & RouteManager) */}
+    <div className="bg-black min-h-screen">
+  <Navbar />
+  <div className="flex h-[calc(100vh-64px)] pt-24 gap-5 p-2.5">
+    {/* Sidebar Section (Left) */}
+    {map && (
       <div className="flex flex-col gap-4 w-[280px] overflow-auto">
-        <BuildingManager map={map} clickedLocation={clickedLocation} />
-        <RouteManager />
+        <div className="bg-white p-4 rounded-lg shadow h-[98%] overflow-y-auto">
+          <button
+            onClick={() => setIsGridFixed(!isGridFixed)}
+            className={`mb-4 w-full py-2 px-4 rounded ${
+              isGridFixed
+                ? 'bg-red-500 hover:bg-red-600'
+                : 'bg-blue-500 hover:bg-blue-600'
+            } text-white`}
+          >
+            {isGridFixed ? 'Unfix Grid' : 'Fix Grid'}
+          </button>
+
+          {gridData && (
+            <button
+              onClick={handlePostData}
+              className="w-full py-2 px-4 rounded bg-green-500 hover:bg-green-600 text-white mb-4"
+            >
+              Post Grid Data
+            </button>
+          )}
+
+          {loading && <p>Loading AQI data...</p>}
+
+          {aqiData.length > 0 && (
+            <div className="mt-4">
+              <h3 className="font-bold mb-2">Sector Data:</h3>
+              <div>
+                {aqiData.map((data) => (
+                  <div
+                    key={data.sectorId}
+                    className="mb-2 p-2 bg-gray-100 rounded"
+                  >
+                    <p className="font-semibold">Sector {data.sectorId}</p>
+                    <p>Original AQI: {data.originalAQI || 'N/A'}</p>
+                    <p>Current AQI: {data.aqi || 'N/A'}</p>
+                    {data.impactedBy?.length > 0 && (
+                      <p>
+                        Building Impacts:{' '}
+                        {data.impactedBy
+                          .map((b) => `#${b.buildingId}(${b.impact})`)
+                          .join(', ')}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+    )}
+
+    {/* Map Section (Center) */}
+    <div
+      className="flex-grow h-[98%] rounded-lg border border-gray-300"
+      ref={mapContainerRef}
+    />
+
+    {/* Right Panel (BuildingManager & RouteManager) */}
+    <div className="flex flex-col gap-4 w-[280px] overflow-auto">
+      <BuildingManager map={map} clickedLocation={clickedLocation} />
+      <RouteManager />
     </div>
-    </div>
+  </div>
+</div>
+
   );
   
   };
