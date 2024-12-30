@@ -12,7 +12,7 @@ const TOMTOM_API_KEY = import.meta.env.VITE_REACT_APP_TOMTOM_API_KEY;
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_REACT_APP_GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-const MapVisualization = () => {
+const Traffic = () => {
   const mapContainerRef = useRef(null);
   const [map, setMap] = useState(null);
   const [route, setRoute] = useState([]);
@@ -21,6 +21,31 @@ const MapVisualization = () => {
   const [error, setError] = useState('');
   const [geminiResponse, setGeminiResponse] = useState('');
   const [darkMode, setDarkMode] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery || !map) return;
+
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${mapboxgl.accessToken}`
+      );
+      const data = await response.json();
+
+      if (data.features && data.features.length > 0) {
+        const [lng, lat] = data.features[0].center;
+        map.flyTo({
+          center: [lng, lat],
+          zoom: 14,
+          essential: true
+        });
+      }
+    } catch (error) {
+      console.error('Error searching location:', error);
+      setError('Failed to search location');
+    }
+  };
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -234,89 +259,103 @@ Keep it brief and clear without bold or quotes and answer in sentences`;
     <div className="container-fluid py-4" style={{ background: '#000' }}>
       <Navbar />
       <div className="row">
-  <div
-    className="col position-relative"
-    style={{ height: 'calc(100vh - 85px)', marginTop: '60px' }}
-  >
-    <div
-      style={{
-        position: 'relative',
-        height: '100%',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: '12px',
-        overflow: 'hidden'
-      }}
-    >
-      <div
-        ref={mapContainerRef}
-        style={{
-          width: '100%',
-          height: '100%'
-        }}
-      />
-    </div>
+        <div
+          className="col position-relative"
+          style={{ height: 'calc(100vh - 85px)', marginTop: '60px' }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              height: '100%',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '12px',
+              overflow: 'hidden'
+            }}
+          >
+            <div
+              ref={mapContainerRef}
+              style={{
+                width: '100%',
+                height: '100%'
+              }}
+            />
+          </div>
 
-    <div
-      style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        width: '300px',
-        height: '100%',
-        background: 'rgba(0, 0, 0, 0.9)',
-        borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
-        padding: '1.5rem',
-        overflowY: 'auto',
-        borderTopRightRadius: '12px',
-        borderBottomRightRadius: '12px'
-      }}
-    >
-      <h5 className="text-white mb-4">Traffic Simulation</h5>
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: '300px',
+              height: '100%',
+              background: 'rgba(0, 0, 0, 0.9)',
+              borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+              padding: '1.5rem',
+              overflowY: 'auto',
+              borderTopRightRadius: '12px',
+              borderBottomRightRadius: '12px'
+            }}
+          >
+            <h5 className="text-white mb-4">Traffic Simulation</h5>
 
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <span className="text-white">Dark Mode</span>
-        <div className="form-check form-switch">
-          <input
-            className="form-check-input"
-            type="checkbox"
-            checked={darkMode}
-            onChange={(e) => setDarkMode(e.target.checked)}
-          />
+            {/* Search Form */}
+            <form onSubmit={handleSearch} className="mb-4">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search for a location..."
+                className="form-control bg-dark text-white border-dark mb-2"
+              />
+              <button type="submit" className="btn btn-primary w-100">
+                Search
+              </button>
+            </form>
+
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <span className="text-white">Dark Mode</span>
+              <div className="form-check form-switch">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  checked={darkMode}
+                  onChange={(e) => setDarkMode(e.target.checked)}
+                />
+              </div>
+            </div>
+
+            <button onClick={startSimulation} className="btn btn-success w-100 mb-3">
+              Start Simulation
+            </button>
+
+            {loading && (
+              <div className="d-flex align-items-center justify-content-center text-white">
+                <div
+                  className="spinner-border text-light"
+                  role="status"
+                  style={{ width: '1.5rem', height: '1.5rem', marginRight: '10px' }}
+                />
+                <span>Analyzing traffic...</span>
+              </div>
+            )}
+
+            {error && (
+              <div className="alert alert-danger mt-3">
+                {error}
+              </div>
+            )}
+
+            {geminiResponse && (
+              <div className="mt-4">
+                <h6 className="text-white">Traffic Insights:</h6>
+                <p className="text-white-50 small">{geminiResponse}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-
-      <button onClick={startSimulation} className="btn btn-success w-100 mb-3">
-        Start Simulation
-      </button>
-
-      {loading && (
-        <div className="d-flex align-items-center justify-content-center text-white">
-          <div
-            className="spinner-border text-light"
-            role="status"
-            style={{ width: '1.5rem', height: '1.5rem', marginRight: '10px' }}
-          />
-          <span>Analyzing traffic...</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="alert alert-danger mt-3">
-          {error}
-        </div>
-      )}
-
-      {geminiResponse && (
-        <div className="mt-4">
-          <h6 className="text-white">Traffic Insights:</h6>
-          <p className="text-white-50 small">{geminiResponse}</p>
-        </div>
-      )}
-    </div>
-  </div>
-</div>
     </div>
   );
 };
 
-export default MapVisualization;
+export default Traffic;
