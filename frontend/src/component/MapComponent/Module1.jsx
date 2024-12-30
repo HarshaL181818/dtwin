@@ -336,7 +336,9 @@ import '../../assets/styles/editorpage.css'
     {/* Right Panel (BuildingManager & RouteManager) */}
     <div className="flex flex-col gap-4 w-[280px] overflow-auto">
       <BuildingManager map={map} clickedLocation={clickedLocation} />
-      <RouteManager />
+      <RouteManager 
+                map={map} 
+              />
     </div>
   </div>
 </div>

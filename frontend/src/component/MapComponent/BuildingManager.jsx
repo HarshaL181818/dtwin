@@ -133,10 +133,58 @@ const BuildingManager = ({ map, clickedLocation }) => {
       alert('Please select a location and building type');
       return;
     }
-
+  
+    const lat = clickedLocation[1];
+    const lng = clickedLocation[0];
+  
+    // Fetch AQI data for the selected location
+    const response = await fetch(
+      `https://api.waqi.info/feed/geo:${lat};${lng}/?token=${import.meta.env.VITE_REACT_APP_AQICN_TOKEN}`
+    );
+  
+    if (!response.ok) {
+      console.error('Failed to fetch AQI data');
+      alert('Failed to fetch AQI data. Please try again.');
+      return;
+    }
+  
+    const data = await response.json();
+  
+    if (!data.data || !data.data.aqi) {
+      console.error('Invalid AQI data');
+      alert('Invalid AQI data. Please try again.');
+      return;
+    }
+  
+    const aqi = data.data.aqi;
+  
+    // Define the AQI thresholds for different building types
+    const buildingAqiLimits = {
+      "Residential Building": 200,
+      "Market/Shopping Area": 150,
+      "Office Building": 100,
+      "Factory/Warehouse": 300,
+      "Power Plant": 400,
+      "Transport Hub": 150,
+      "Educational Institution": 100,
+      "Government Office": 150,
+      "Park": 50,
+      "Cinema/Entertainment": 100,
+      "Gym/Sports Arena": 100,
+      "Healthcare Facility": 50,
+    };
+  
+    const maxAqiAllowed = buildingAqiLimits[buildingType] || 200; // Default to 200 if type not found
+  
+    if (aqi > maxAqiAllowed) {
+      alert(`Warning: The AQI at this location is too high for a ${buildingType}. AQI: ${aqi}`);
+      return; // Stop adding the building if AQI is too high
+    }
+  
+    // If AQI is below the threshold, proceed with adding the building
     const size = buildingWidth / 111111;
     const coordinates = getRotatedCoordinates(clickedLocation, size, buildingRotation);
-
+  
     const newBuilding = {
       location: clickedLocation,
       coordinates,
@@ -146,7 +194,7 @@ const BuildingManager = ({ map, clickedLocation }) => {
       rotation: buildingRotation,
       type: buildingType,
     };
-
+  
     try {
       const response = await axios.post(API_BASE_URL, newBuilding);
       setBuildings(prev => [...prev, response.data]);
@@ -157,7 +205,7 @@ const BuildingManager = ({ map, clickedLocation }) => {
       alert('Failed to add building. Please try again.');
     }
   };
-
+  
   const handleDeleteBuilding = async (buildingId) => {
     try {
       await axios.delete(`${API_BASE_URL}/${buildingId}`);

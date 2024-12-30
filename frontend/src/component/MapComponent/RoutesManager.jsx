@@ -162,16 +162,17 @@ const RouteManager = ({ map }) => {
 
   const handleSaveRoute = async () => {
     if (!routeName || clickedPoints.length < 2) return;
-
+  
     try {
       const route = {
         name: routeName,
         type: routeType,
         coordinates: clickedPoints.map((coord) => coord.join(',')),
+        createdAt: new Date().toISOString() // Add this line
       };
-
+  
       await axios.post('http://localhost:8080/api/routes', route);
-
+  
       const drawingSourceId = 'temp-route-line';
       if (map.getLayer(drawingSourceId)) {
         map.removeLayer(drawingSourceId);
@@ -179,13 +180,15 @@ const RouteManager = ({ map }) => {
       if (map.getSource(drawingSourceId)) {
         map.removeSource(drawingSourceId);
       }
-
+  
       setRouteName('');
       setClickedPoints([]);
       setIsDrawing(false);
       loadRoutes();
     } catch (error) {
       console.error('Failed to save route:', error);
+      // Add error handling to show user feedback
+      alert('Failed to save route: ' + error.message);
     }
   };
 
