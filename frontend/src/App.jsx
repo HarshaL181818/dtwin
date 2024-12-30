@@ -9,7 +9,10 @@ import Module1 from "./component/MapComponent/Module1";
 import Pollution from "./component/AnalysisComponent/Pollution";
 import Traffic from "./component/AnalysisComponent/Traffic";
 import PollutionControl from "./component/MapComponent/PollutionControl";
+import Traf from "./component/MapComponent/Traf";
+import RoutManager from "./component/MapComponent/RoutManager";
 import './App.css'
+import RoutManagerr from "./component/MapComponent/RoutManager";
 
 function App() {
   return (
@@ -25,6 +28,8 @@ function App() {
         <Route path="/features/visualization/pollution" element={<Pollution />} />
         <Route path="/features/visualization/traffic" element={<Traffic />} />
         <Route path="/poll" element={<PollutionControl />} />
+        <Route path="/traf" element={<Traf />} />
+        <Route path="/help" element={<RoutManager />} />
       </Routes>    
     </Router>
   );

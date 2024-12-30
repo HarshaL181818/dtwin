@@ -11,6 +11,16 @@ const Pollution = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [map, setMap] = useState(null);
   const [isClickListenerEnabled, setIsClickListenerEnabled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const getColorForAQI = (aqi) => {
+    if (aqi <= 50) return '#00e400'; // Green - Good
+    if (aqi <= 100) return '#ffff00'; // Yellow - Moderate
+    if (aqi <= 150) return '#ff7e00'; // Orange - Unhealthy for Sensitive Groups
+    if (aqi <= 200) return '#ff0000'; // Red - Unhealthy
+    if (aqi <= 300) return '#99004c'; // Purple - Very Unhealthy
+    return '#7e0023'; // Maroon - Hazardous
+  };
 
   const fetchAQI = async (lat, lng) => {
     try {
@@ -30,12 +40,35 @@ const Pollution = () => {
     }
   };
 
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery || !map) return;
+
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${mapboxgl.accessToken}`
+      );
+      const data = await response.json();
+
+      if (data.features && data.features.length > 0) {
+        const [lng, lat] = data.features[0].center;
+        map.flyTo({
+          center: [lng, lat],
+          zoom: 9,
+          essential: true
+        });
+      }
+    } catch (error) {
+      console.error('Error searching location:', error);
+    }
+  };
+
   useEffect(() => {
     const mapInstance = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: isDarkMode ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
       center: [77.209, 28.6139],
-      zoom: 8,
+      zoom: 9,
       pitch: 60,
       bearing: -17.6,
     });
@@ -43,7 +76,7 @@ const Pollution = () => {
     setMap(mapInstance);
 
     mapInstance.on('load', () => {
-      // Add the source
+      // Add a source for the grid cells
       mapInstance.addSource('grid-data', {
         type: 'geojson',
         data: {
@@ -52,24 +85,16 @@ const Pollution = () => {
         }
       });
 
-      // Add fill layer for coloring grid cells
+      // Add a layer for the grid cells
       mapInstance.addLayer({
-        id: 'aqi-grid',
-        type: 'fill',
+        id: 'grid-layer',
+        type: 'fill-extrusion',
         source: 'grid-data',
         paint: {
-          'fill-color': [
-            'interpolate',
-            ['linear'],
-            ['get', 'aqi'],
-            0, '#00FF00', // Good (0-50)
-            51, '#FFFF00', // Moderate (51-100)
-            101, '#FF7F00', // Unhealthy for Sensitive Groups (101-150)
-            151, '#FF0000', // Unhealthy (151-200)
-            201, '#800080', // Very Unhealthy (201-300)
-            301, '#800000'  // Hazardous (301+)
-          ],
-          'fill-opacity': 0.6,
+          'fill-extrusion-color': ['get', 'color'],
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': 0,
+          'fill-extrusion-opacity': 0.7
         }
       });
 
@@ -100,48 +125,53 @@ const Pollution = () => {
       const { lng, lat } = event.lngLat;
       console.log(`Clicked coordinates: Longitude ${lng}, Latitude ${lat}`);
 
-      const largeSquareSide = 0.2;
-      const divisions = 20;
-      const smallSquareSide = largeSquareSide / divisions;
+      const gridSize = 0.05; // Size of each grid cell in degrees
+      const gridDimension = 10; // Number of cells in each direction
       const promises = [];
+      const gridFeatures = [];
 
-      // Create a grid of points
-      for (let i = 0; i < divisions; i++) {
-        for (let j = 0; j < divisions; j++) {
-          const offsetX = (i - divisions / 2 + 0.5) * smallSquareSide;
-          const offsetY = (j - divisions / 2 + 0.5) * smallSquareSide;
-          const pointCenter = [lng + offsetX, lat + offsetY];
-          
+      // Create grid cells around the clicked point
+      for (let i = 0; i < gridDimension; i++) {
+        for (let j = 0; j < gridDimension; j++) {
+          const cellLng = lng + (i - gridDimension/2) * gridSize;
+          const cellLat = lat + (j - gridDimension/2) * gridSize;
+
+          // Create the grid cell polygon
+          const cell = {
+            type: 'Feature',
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[
+                [cellLng, cellLat],
+                [cellLng + gridSize, cellLat],
+                [cellLng + gridSize, cellLat + gridSize],
+                [cellLng, cellLat + gridSize],
+                [cellLng, cellLat]
+              ]]
+            },
+            properties: {}
+          };
+
           promises.push(
-            fetchAQI(pointCenter[1], pointCenter[0]).then((aqi) => ({
-              type: 'Feature',
-              geometry: {
-                type: 'Polygon',
-                coordinates: [
-                  [
-                    [lng + offsetX, lat + offsetY],
-                    [lng + offsetX + smallSquareSide, lat + offsetY],
-                    [lng + offsetX + smallSquareSide, lat + offsetY + smallSquareSide],
-                    [lng + offsetX, lat + offsetY + smallSquareSide],
-                    [lng + offsetX, lat + offsetY]
-                  ]
-                ]
-              },
-              properties: {
-                aqi: aqi || 0,
+            fetchAQI(cellLat + gridSize/2, cellLng + gridSize/2).then(aqi => {
+              if (aqi !== null) {
+                cell.properties.aqi = aqi;
+                cell.properties.color = getColorForAQI(aqi);
+                cell.properties.height = Math.max(500, aqi * 10); // Scale height based on AQI
+                gridFeatures.push(cell);
               }
-            }))
+            })
           );
         }
       }
 
-      const pointsWithAQI = await Promise.all(promises);
+      await Promise.all(promises);
 
-      // Update the grid data source
+      // Update the grid layer with new data
       if (map.getSource('grid-data')) {
         map.getSource('grid-data').setData({
           type: 'FeatureCollection',
-          features: pointsWithAQI.filter(point => point.properties.aqi !== null),
+          features: gridFeatures
         });
       }
     };
@@ -157,7 +187,14 @@ const Pollution = () => {
   return (
     <div className="min-h-screen bg-black flex">
       <Navbar />
-      {/* Settings Panel */}
+      <div
+        className="fixed left-0 p-6 w-64"
+        style={{
+          width: '100%',
+          height: '100vh',
+        }}
+      />
+
       <div
         className="position-fixed left-0 p-4"
         style={{
@@ -168,13 +205,30 @@ const Pollution = () => {
           borderRadius: '20px',
           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
           transition: 'transform 0.3s ease-in-out',
-          transform: 'translateX(0)', // Set initial position of the sidebar
-          top: '80px', // Adjust this value to shift the panel down
+          transform: 'translateX(0)',
+          top: '80px',
         }}
       >
         <h5 className="text-xl font-bold text-white mb-6">Settings Panel</h5>
 
         <div className="space-y-4">
+          {/* Search Input */}
+          <form onSubmit={handleSearch} className="mb-4">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search for a city..."
+              className="w-full p-2 rounded-lg bg-gray-800 text-white border border-gray-700 focus:outline-none focus:border-blue-500"
+            />
+            <button
+              type="submit"
+              className="w-full mt-2 py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+            >
+              Search
+            </button>
+          </form>
+
           {/* Dark Mode Switch */}
           <div className="flex items-center justify-between text-white">
             <label htmlFor="darkModeSwitch" className="cursor-pointer">
@@ -200,6 +254,37 @@ const Pollution = () => {
           >
             {isClickListenerEnabled ? 'Disable Click Listener' : 'Enable Click Listener'}
           </button>
+
+          {/* AQI Legend */}
+          <div className="mt-6">
+            <h6 className="text-white font-semibold mb-2">AQI Legend</h6>
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-[#00e400] mr-2"></div>
+                <span className="text-white text-sm">0-50: Good</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-[#ffff00] mr-2"></div>
+                <span className="text-white text-sm">51-100: Moderate</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-[#ff7e00] mr-2"></div>
+                <span className="text-white text-sm">101-150: Unhealthy for Sensitive Groups</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-[#ff0000] mr-2"></div>
+                <span className="text-white text-sm">151-200: Unhealthy</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-[#99004c] mr-2"></div>
+                <span className="text-white text-sm">201-300: Very Unhealthy</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-[#7e0023] mr-2"></div>
+                <span className="text-white text-sm">300+: Hazardous</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -207,18 +292,17 @@ const Pollution = () => {
       <div
         className="flex-1 p-8 ml-64"
         style={{
-          transition: 'margin-left 0.3s ease-in-out', // Smooth transition when content shifts
-          marginLeft: '250px', // Initial offset to make room for the settings panel
+          transition: 'margin-left 0.3s ease-in-out',
+          marginLeft: '250px',
         }}
       >
         <div
           className="rounded-2xl overflow-hidden border border-gray-800 shadow-2xl"
           style={{
-            height: 'calc(100vh - 8rem)', // Adjust this value to make the map smaller vertically
-            marginTop: '80px', // Shifts the map container down
+            height: 'calc(100vh - 8rem)',
+            marginTop: '80px',
           }}
         >
-          {/* Map Container */}
           <div
             ref={mapContainerRef}
             style={{
