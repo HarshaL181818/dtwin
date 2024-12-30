@@ -59,7 +59,7 @@ const FeaturesPage = () => {
               >
                 <div className="h-48 mb-6 overflow-hidden rounded-lg">
                   <img 
-                    src="/image2.png" 
+                    src="/pollution.jpeg" 
                     alt="Developed Cities"
                     className="w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-110"
                   />
