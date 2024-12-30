@@ -8,60 +8,89 @@ import { getAQIColor } from '../../utils/aqiUtils';
 import Navbar from '../Navbar/Navbar';
 import '../../assets/styles/editorpage.css'
 
-  // Move token to environment variable
-  mapboxgl.accessToken = import.meta.env.VITE_REACT_APP_MAPBOX_TOKEN;
+mapboxgl.accessToken = import.meta.env.VITE_REACT_APP_MAPBOX_TOKEN;
 
-  const Module1 = () => {
-    const mapContainerRef = useRef(null);
-    const mapInstanceRef = useRef(null);
-    const [map, setMap] = useState(null);
-    const [clickedLocation, setClickedLocation] = useState(null);
-    const [aqiData, setAqiData] = useState([]);
-    const [isGridFixed, setIsGridFixed] = useState(false);
-    const [gridData, setGridData] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+const Module1 = () => {
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const [map, setMap] = useState(null);
+  const [clickedLocation, setClickedLocation] = useState(null);
+  const [aqiData, setAqiData] = useState([]);
+  const [isGridFixed, setIsGridFixed] = useState(false);
+  const [gridData, setGridData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-    // Improved error handling for AQI fetching
-    const fetchAQI = async (lat, lng) => {
-      try {
-        const response = await axios.get(
-          `https://api.waqi.info/feed/geo:${lat};${lng}/?token=${import.meta.env.VITE_REACT_APP_AQICN_TOKEN}`
-        );
-        
-        if (response.data.status === 'ok') {
-          return response.data.data.aqi;
-        }
-        throw new Error('Invalid AQI data received');
-      } catch (error) {
-        console.error('Error fetching AQI:', error);
-        setError('Failed to fetch AQI data');
-        return null;
+  const fetchAQI = async (lat, lng) => {
+    try {
+      const response = await fetch(
+        `https://api.waqi.info/feed/geo:${lat};${lng}/?token=${import.meta.env.VITE_REACT_APP_AQICN_TOKEN}`
+      );
+      const data = await response.json();
+      if (data.status === 'ok') {
+        return data.data.aqi;
       }
-    };
+      return null;
+    } catch (error) {
+      console.error('Error fetching AQI:', error);
+      return null;
+    }
+  };
 
-    // Improved grid generation with error handling and cleanup
-    const generateGrid = async (coordinates) => {
-      const gridConfig = {
-        largeSquareSide: 0.01,
-        divisions: 6
-      };
-      
-      const smallSquareSide = gridConfig.largeSquareSide / gridConfig.divisions;
-      const promises = [];
-      const aqiCoordinates = [];
+  const updateGridWithAQIData = (aqiDataToUpdate) => {
+    const updatedFeatures = aqiDataToUpdate.map(data => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[
+          [data.coordinates[0] - 0.00083, data.coordinates[1] + 0.00083],
+          [data.coordinates[0] + 0.00083, data.coordinates[1] + 0.00083],
+          [data.coordinates[0] + 0.00083, data.coordinates[1] - 0.00083],
+          [data.coordinates[0] - 0.00083, data.coordinates[1] - 0.00083],
+          [data.coordinates[0] - 0.00083, data.coordinates[1] + 0.00083]
+        ]]
+      },
+      properties: {
+        color: getAQIColor(data.aqi || 0),
+        sectorId: data.sectorId
+      }
+    }));
 
-      for (let i = 0; i < gridConfig.divisions; i++) {
-        for (let j = 0; j < gridConfig.divisions; j++) {
-          const offsetLng = coordinates[0] + (i - gridConfig.divisions / 2) * smallSquareSide;
-          const offsetLat = coordinates[1] + (j - gridConfig.divisions / 2) * smallSquareSide;
+    if (mapInstanceRef.current && mapInstanceRef.current.getSource('grid-data')) {
+      mapInstanceRef.current.getSource('grid-data').setData({
+        type: 'FeatureCollection',
+        features: updatedFeatures
+      });
+    }
+    setGridData(updatedFeatures);
+  };
 
-          const centerLat = offsetLat - smallSquareSide / 2;
-          const centerLng = offsetLng + smallSquareSide / 2;
-          const sectorId = i * gridConfig.divisions + j + 1;
+  const generateGrid = async (coordinates) => {
+    const largeSquareSide = 0.01;
+    const divisions = 6;
+    const smallSquareSide = largeSquareSide / divisions;
+    const promises = [];
+    const aqiCoordinates = [];
 
-          promises.push(
-            fetchAQI(centerLat, centerLng).then((aqi) => ({
+    for (let i = 0; i < divisions; i++) {
+      for (let j = 0; j < divisions; j++) {
+        const offsetLng = coordinates[0] + (i - divisions / 2) * smallSquareSide;
+        const offsetLat = coordinates[1] + (j - divisions / 2) * smallSquareSide;
+
+        const centerLat = offsetLat - smallSquareSide / 2;
+        const centerLng = offsetLng + smallSquareSide / 2;
+
+        promises.push(
+          fetchAQI(centerLat, centerLng).then((aqi) => {
+            const sectorId = i * divisions + j + 1;
+            aqiCoordinates.push({
+              coordinates: [centerLng, centerLat],
+              aqi,
+              sectorId,
+              impactedBy: [],
+              originalAQI: aqi
+            });
+
+            return {
               type: 'Feature',
               geometry: {
                 type: 'Polygon',
@@ -76,197 +105,165 @@ import '../../assets/styles/editorpage.css'
               properties: {
                 color: getAQIColor(aqi || 0),
                 sectorId
-              },
-              aqiInfo: {
-                coordinates: [centerLng, centerLat],
-                aqi,
-                sectorId,
-                originalAQI: aqi
               }
-            }))
-          );
-        }
+            };
+          })
+        );
       }
+    }
 
-      try {
-        const results = await Promise.all(promises);
-        const gridFeatures = results.map(result => ({
-          type: 'Feature',
-          geometry: result.geometry,
-          properties: result.properties
-        }));
-        
-        const aqiCoordinates = results.map(result => result.aqiInfo);
-        
-        return { gridFeatures, aqiCoordinates };
-      } catch (error) {
-        setError('Failed to generate grid');
-        throw error;
-      }
-    };
+    const gridFeatures = await Promise.all(promises);
+    return { gridFeatures, aqiCoordinates };
+  };
 
-    // Improved map initialization with error handling
-    useEffect(() => {
-      if (!mapboxgl.supported()) {
-        setError('Your browser does not support Mapbox GL');
-        return;
-      }
-
-      const initializeMap = () => {
-        try {
-          const mapInstance = new mapboxgl.Map({
-            container: mapContainerRef.current,
-            style: 'mapbox://styles/mapbox/light-v11',
-            center: [77.5946, 12.9716],
-            zoom: 15,
-            pitch: 60,
-            bearing: -45,
-            antialias: true
-          });
-
-          mapInstance.on('load', () => {
-            setupMapLayers(mapInstance);
-          });
-
-          mapInstanceRef.current = mapInstance;
-          setMap(mapInstance);
-        } catch (error) {
-          setError('Failed to initialize map');
-          console.error('Map initialization error:', error);
-        }
-      };
-
-      initializeMap();
-
-      return () => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.remove();
-        }
-      };
-    }, []);
-
-    // Separate function for setting up map layers
-    const setupMapLayers = (mapInstance) => {
-      mapInstance.addSource('click-point', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] }
+  useEffect(() => {
+    const initializeMap = () => {
+      const mapInstance = new mapboxgl.Map({
+        container: mapContainerRef.current,
+        style: 'mapbox://styles/mapbox/light-v11',
+        center: [77.5946, 12.9716],
+        zoom: 15,
+        pitch: 60,
+        bearing: -45,
+        antialias: true
       });
 
-      mapInstance.addSource('grid-data', {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] }
-      });
-
-      mapInstance.addLayer({
-        id: 'grid-layer',
-        type: 'fill',
-        source: 'grid-data',
-        paint: {
-          'fill-color': ['get', 'color'],
-          'fill-opacity': 0.4,
-          'fill-outline-color': '#000000'
-        }
-      });
-
-      mapInstance.addLayer({
-        id: 'click-marker',
-        type: 'circle',
-        source: 'click-point',
-        paint: {
-          'circle-radius': 8,
-          'circle-color': '#ff0000',
-          'circle-opacity': 0.7,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff'
-        }
-      });
-    };
-
-    // Improved click handler with debouncing
-    useEffect(() => {
-      if (!mapInstanceRef.current) return;
-
-      let timeoutId;
-      const handleClick = async (e) => {
-        const coordinates = [e.lngLat.lng, e.lngLat.lat];
-        setClickedLocation(coordinates);
-
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.getSource('click-point').setData({
-            type: 'FeatureCollection',
-            features: [{
-              type: 'Feature',
-              geometry: {
-                type: 'Point',
-                coordinates
-              }
-            }]
-          });
-
-          if (!isGridFixed) {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(async () => {
-              try {
-                setLoading(true);
-                setError(null);
-                const { gridFeatures, aqiCoordinates } = await generateGrid(coordinates);
-                
-                if (mapInstanceRef.current) {
-                  mapInstanceRef.current.getSource('grid-data').setData({
-                    type: 'FeatureCollection',
-                    features: gridFeatures
-                  });
-                }
-                
-                setGridData(gridFeatures);
-                setAqiData(aqiCoordinates);
-              } catch (error) {
-                setError('Failed to update grid');
-                console.error('Grid generation error:', error);
-              } finally {
-                setLoading(false);
-              }
-            }, 300);
+      mapInstance.on('load', () => {
+        mapInstance.addLayer({
+          id: 'add-3d-buildings',
+          source: 'composite',
+          'source-layer': 'building',
+          filter: ['==', 'extrude', 'true'],
+          type: 'fill-extrusion',
+          minzoom: 15,
+          paint: {
+            'fill-extrusion-color': '#aaa',
+            'fill-extrusion-height': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              15,
+              0,
+              15.05,
+              ['get', 'height']
+            ],
+            'fill-extrusion-base': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              15,
+              0,
+              15.05,
+              ['get', 'min_height']
+            ],
+            'fill-extrusion-opacity': 0.6
           }
-        }
-      };
+        });
 
-      mapInstanceRef.current.on('click', handleClick);
+        mapInstance.addSource('click-point', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
 
-      return () => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.off('click', handleClick);
-        }
-        clearTimeout(timeoutId);
-      };
-    }, [isGridFixed]);
+        mapInstance.addSource('grid-data', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
 
-    // Improved data posting with validation and error handling
-    const handlePostData = async () => {
-      if (!gridData || !aqiData || !clickedLocation) {
-        setError("Please generate the grid before posting data.");
-        return;
+        mapInstance.addLayer({
+          id: 'grid-layer',
+          type: 'fill',
+          source: 'grid-data',
+          paint: {
+            'fill-color': ['get', 'color'],
+            'fill-opacity': 0.4,
+            'fill-outline-color': '#000000'
+          }
+        });
+
+        mapInstance.addLayer({
+          id: 'click-marker',
+          type: 'circle',
+          source: 'click-point',
+          paint: {
+            'circle-radius': 8,
+            'circle-color': '#ff0000',
+            'circle-opacity': 0.7,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff'
+          }
+        });
+      });
+
+      mapInstanceRef.current = mapInstance;
+      setMap(mapInstance);
+      return mapInstance;
+    };
+
+    const mapInstance = initializeMap();
+
+    return () => {
+      if (mapInstance) {
+        mapInstance.remove();
       }
+    };
+  }, []);
 
-      const payload = {
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    const handleClick = async (e) => {
+      const coordinates = [e.lngLat.lng, e.lngLat.lat];
+      setClickedLocation(coordinates);
+
+      mapInstanceRef.current.getSource('click-point').setData({
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates
+          }
+        }]
+      });
+
+      if (!isGridFixed) {
+        setLoading(true);
+        const { gridFeatures, aqiCoordinates } = await generateGrid(coordinates);
+        setLoading(false);
+        mapInstanceRef.current.getSource('grid-data').setData({
+          type: 'FeatureCollection',
+          features: gridFeatures
+        });
+        setGridData(gridFeatures);
+        setAqiData(aqiCoordinates);
+      }
+    };
+
+    mapInstanceRef.current.on('click', handleClick);
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.off('click', handleClick);
+      }
+    };
+  }, [isGridFixed]);
+
+  const handlePostData = async () => {
+    if (!gridData) return;
+
+    try {
+      await axios.post('/api/grid-data', {
         timestamp: new Date().toISOString(),
         centerCoordinates: clickedLocation,
         gridSectors: aqiData
-      };
-
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await axios.post('http://localhost:8080/api/sector', payload);
-        console.log("Post response:", response.data);
-        alert('Grid data posted successfully!');
-      } catch (error) {
-        setError('Failed to post grid data');
-        console.error('Error posting data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      });
+      alert('Grid data posted successfully!');
+    } catch (error) {
+      console.error('Error posting data:', error);
+      alert('Failed to post grid data');
+    }
+  };
 
   return (
     <div className="bg-black min-h-screen">
@@ -336,9 +333,7 @@ import '../../assets/styles/editorpage.css'
     {/* Right Panel (BuildingManager & RouteManager) */}
     <div className="flex flex-col gap-4 w-[280px] overflow-auto">
       <BuildingManager map={map} clickedLocation={clickedLocation} />
-      <RouteManager 
-                map={map} 
-              />
+      <RouteManager map={map}/>
     </div>
   </div>
 </div>
@@ -346,5 +341,6 @@ import '../../assets/styles/editorpage.css'
   );
   
   };
-
+  
   export default Module1;
+  
